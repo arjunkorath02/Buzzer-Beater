@@ -226,44 +226,76 @@
       const sortedPlayers = useMemo(() => Object.values(game.players || {}).sort((a, b) => b.score - a.score), [game.players]);
       const isBuzzerEnabled = game.buzzerOpen && game.timer > 0 && !buzzed;
 
+      // Reusable Leaderboard Table
+      const LeaderboardTable = () => (
+        <table className="w-full text-left border-collapse">
+          <thead className="text-xs text-slate-500 uppercase border-b border-slate-700">
+            <tr><th className="pb-3 pl-2">Rank</th><th className="pb-3">Player</th><th className="pb-3 text-right pr-2">Score</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {sortedPlayers.map((p, index) => (
+              <tr key={p.id} className={`${p.id === playerId ? 'bg-indigo-900/30' : ''}`}>
+                <td className="py-3 pl-2 font-mono text-slate-400 w-12">#{index + 1}</td>
+                <td className="py-3">
+                  <div className={`font-bold ${p.id === playerId ? 'text-indigo-400' : 'text-white'}`}>{p.name} {p.id === playerId && '(You)'}</div>
+                  <div className="text-xs text-slate-500">{p.team}</div>
+                </td>
+                <td className="py-3 text-right pr-2 font-mono text-xl text-yellow-500 font-bold">{p.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+
       return (
-        <div className="min-h-screen flex flex-col relative">
-          <div className="bg-slate-800 p-4 shadow-lg flex justify-between items-center z-10">
+        <div className="min-h-screen flex flex-col relative bg-slate-900 text-white">
+          {/* Header - Fixed Height */}
+          <div className="bg-slate-800 p-4 shadow-lg flex justify-between items-center z-10 shrink-0">
             <div><h2 className="font-bold text-lg text-white">{player.name}</h2><span className="text-sm text-slate-400">{player.team}</span></div>
             <div className="text-right"><div className="text-2xl font-mono font-bold text-blue-400">{game.timer}s</div><div className="text-xs text-slate-400">Round {game.round}</div></div>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-6">
-            <button onClick={handleBuzz} disabled={!isBuzzerEnabled}
-              className={`w-64 h-64 rounded-full border-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center transition-all transform active:scale-95 ${isBuzzerEnabled ? 'bg-red-600 border-red-800 hover:bg-red-500 hover:shadow-[0_0_80px_rgba(220,38,38,0.6)] cursor-pointer' : buzzed ? 'bg-green-600 border-green-800 opacity-100' : 'bg-slate-700 border-slate-800 opacity-50 cursor-not-allowed'}`}
-            >
-              {buzzed ? <Zap className="w-20 h-20 text-white animate-pulse" /> : <Smartphone className="w-20 h-20 text-white" />}
-              <span className="mt-2 font-bold text-xl uppercase tracking-widest text-white">{buzzed ? 'LOCKED IN' : 'PUSH'}</span>
-            </button>
-            <div className="h-12 mt-8 font-bold text-xl text-center text-yellow-400 animate-bounce">{feedback}</div>
+
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left Side: Buzzer Area (Full on mobile, shared on desktop) */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
+              <button onClick={handleBuzz} disabled={!isBuzzerEnabled}
+                className={`w-64 h-64 rounded-full border-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center justify-center transition-all transform active:scale-95 ${isBuzzerEnabled ? 'bg-red-600 border-red-800 hover:bg-red-500 hover:shadow-[0_0_80px_rgba(220,38,38,0.6)] cursor-pointer' : buzzed ? 'bg-green-600 border-green-800 opacity-100' : 'bg-slate-700 border-slate-800 opacity-50 cursor-not-allowed'}`}
+              >
+                {buzzed ? <Zap className="w-20 h-20 text-white animate-pulse" /> : <Smartphone className="w-20 h-20 text-white" />}
+                <span className="mt-2 font-bold text-xl uppercase tracking-widest text-white">{buzzed ? 'LOCKED IN' : 'PUSH'}</span>
+              </button>
+              <div className="h-12 mt-8 font-bold text-xl text-center text-yellow-400 animate-bounce">{feedback}</div>
+            </div>
+
+            {/* Right Side: Consistent Leaderboard (Desktop/Tablet Only) */}
+            <div className="hidden md:flex w-80 border-l border-slate-700 bg-slate-800/30 flex-col">
+               <div className="p-4 border-b border-slate-700 shadow-sm bg-slate-800/50">
+                 <h3 className="font-bold text-yellow-400 flex items-center gap-2"><Trophy size={18} /> Live Standings</h3>
+               </div>
+               <div className="flex-1 overflow-y-auto p-4">
+                 <LeaderboardTable />
+               </div>
+               <div className="p-4 bg-slate-800 border-t border-slate-700">
+                  <div className="text-sm text-slate-400 text-center">My Score: <span className="text-white font-bold text-lg ml-1">{player.score}</span></div>
+               </div>
+            </div>
           </div>
-          <div className="bg-slate-800 p-4 flex justify-between items-center shadow-lg z-10">
+
+          {/* Mobile Footer & Toggle (Mobile Only) */}
+          <div className="md:hidden bg-slate-800 p-4 flex justify-between items-center shadow-lg z-10 shrink-0">
             <div className="text-sm text-slate-400">My Score: <span className="text-white font-bold text-lg ml-1">{player.score}</span></div>
             <button onClick={() => setShowLeaderboard(true)} className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"><Trophy size={14} /> Leaderboard</button>
           </div>
+
+          {/* Mobile Modal Overlay */}
           {showLeaderboard && (
-            <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-in fade-in duration-200 text-white">
+            <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col animate-in fade-in duration-200 text-white md:hidden">
               <div className="bg-slate-800 p-4 flex justify-between items-center shadow-md">
                 <h2 className="text-xl font-bold flex items-center gap-2 text-yellow-400"><Trophy size={24} /> Leaderboard</h2>
                 <button onClick={() => setShowLeaderboard(false)} className="p-2 bg-slate-700 rounded-full hover:bg-slate-600 transition"><X size={20} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                <table className="w-full text-left border-collapse">
-                  <thead className="text-xs text-slate-500 uppercase border-b border-slate-700"><tr><th className="pb-3 pl-2">Rank</th><th className="pb-3">Player</th><th className="pb-3 text-right pr-2">Score</th></tr></thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {sortedPlayers.map((p, index) => (
-                      <tr key={p.id} className={`${p.id === playerId ? 'bg-indigo-900/30' : ''}`}>
-                        <td className="py-3 pl-2 font-mono text-slate-400 w-12">#{index + 1}</td>
-                        <td className="py-3"><div className={`font-bold ${p.id === playerId ? 'text-indigo-400' : 'text-white'}`}>{p.name} {p.id === playerId && '(You)'}</div><div className="text-xs text-slate-500">{p.team}</div></td>
-                        <td className="py-3 text-right pr-2 font-mono text-xl text-yellow-500 font-bold">{p.score}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <LeaderboardTable />
               </div>
             </div>
           )}
