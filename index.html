@@ -204,6 +204,7 @@
           const myBuzz = game.buzzes.find(b => b.playerId === playerId);
           setBuzzed(!!myBuzz);
           if (myBuzz) {
+            // FIX: Use simple index, relying on server arrival order
             const rank = game.buzzes.findIndex(b => b.playerId === playerId) + 1;
             setFeedback(`Buzzed! Rank: ${rank}`);
           } else {
@@ -438,7 +439,8 @@
       if (!gameData) return <Loading msg="Loading Game Room..." />;
       const isDirty = gameData.buzzerOpen || (gameData.timer !== (gameData.initialTimer || 30));
       const playerList = Object.values(gameData.players || {}).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-      const buzzes = (gameData.buzzes || []).sort((a, b) => a.timestamp - b.timestamp).slice(0, 5);
+      // FIX: Use simple slice, relying on server arrival order
+      const buzzes = (gameData.buzzes || []).slice(0, 5);
 
       return (
         <div className="min-h-screen flex flex-col text-white">
