@@ -351,19 +351,28 @@
       const [feedback, setFeedback] = useState('');
       const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-      // --- ANTI-CHEAT VISIBILITY CHECK ---
+      // --- ANTI-CHEAT VISIBILITY & FOCUS CHECK ---
       useEffect(() => {
-        const handleVisibilityChange = () => {
-          if (document.hidden && !player.locked) {
-            // Player switched tabs! Lock them out.
+        const handleCheatDetection = () => {
+          if (!player.locked) {
+            // Player lost focus or switched tabs! Lock them out.
             const gameRef = doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, gameId);
-            // We use dot notation to update just this player's locked status
             updateDoc(gameRef, { [`players.${playerId}.locked`]: true });
           }
         };
 
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        // Trigger on tab switch or minimize
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) handleCheatDetection();
+        });
+
+        // Trigger on losing focus (clicking other windows, notification shade, etc.)
+        window.addEventListener('blur', handleCheatDetection);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleCheatDetection);
+            window.removeEventListener('blur', handleCheatDetection);
+        };
       }, [playerId, gameId, player.locked]);
 
       useEffect(() => {
@@ -400,8 +409,8 @@
               <ShieldAlert className="w-24 h-24 mx-auto mb-6 text-red-200 animate-pulse" />
               <h1 className="text-4xl font-black mb-4">LOCKED OUT</h1>
               <p className="text-xl mb-6 text-red-100">
-                You switched tabs or left the game screen. <br/>
-                Access has been restricted to prevent cheating.
+                You switched tabs or lost focus. <br/>
+                Access restricted to prevent cheating.
               </p>
               <div className="bg-black/30 p-4 rounded-lg text-sm text-red-200">
                 Ask the <strong>HOST</strong> to unlock you to continue playing.
