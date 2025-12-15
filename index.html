@@ -678,7 +678,19 @@
       
       const activateRound = async (r) => {
         const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
-        const qIds = sorted.slice(0, r.qualifiers).map(p => p.id);
+        
+        // --- NEW LOGIC START ---
+        // Tie-breaker logic: Anyone with a score >= the cutoff score qualifies.
+        let qIds = [];
+        if (sorted.length <= r.qualifiers) {
+           qIds = sorted.map(p => p.id); // Everyone qualifies if fewer players than spots
+        } else {
+           const cutoffScore = sorted[r.qualifiers - 1].score;
+           // Include everyone with score >= cutoffScore
+           qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id);
+        }
+        // --- NEW LOGIC END ---
+
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
