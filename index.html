@@ -132,7 +132,7 @@
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
@@ -652,16 +652,11 @@
       const toggleFocusMode = async () => {
         const newStatus = !gameData.focusModeEnabled;
         const updates = { focusModeEnabled: newStatus };
-        
-        // AUTO UNLOCK ALL PLAYERS WHEN TURNING OFF MODE
         if (!newStatus && gameData.players) {
            Object.keys(gameData.players).forEach(pid => {
-             if (gameData.players[pid].locked) {
-               updates[`players.${pid}.locked`] = false;
-             }
+             if (gameData.players[pid].locked) { updates[`players.${pid}.locked`] = false; }
            });
         }
-        
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), updates);
       };
 
@@ -674,13 +669,8 @@
       const activateRound = async (r) => {
         const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
         let qIds = [];
-        if (sorted.length <= r.qualifiers) {
-           qIds = sorted.map(p => p.id); 
-        } else {
-           const cutoffScore = sorted[r.qualifiers - 1].score;
-           qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id);
-        }
-
+        if (sorted.length <= r.qualifiers) { qIds = sorted.map(p => p.id); } 
+        else { const cutoffScore = sorted[r.qualifiers - 1].score; qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id); }
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
@@ -709,7 +699,7 @@
       const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (file) {
-          if (file.size > 5000000) { alert("Image is too large (Max 5MB for upload)."); return; }
+          if (file.size > 5000000) { alert("Image is too large (Max 5MB)."); return; }
           try {
             const compressedDataUrl = await compressImage(file);
             if (compressedDataUrl.length > 950000) { alert("Image is too complex even after compression."); return; }
@@ -723,8 +713,10 @@
       };
       
       const clearQuestion = async () => {
-        setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
-        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: '', currentImage: null });
+        try {
+          setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
+          await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: '', currentImage: deleteField() });
+        } catch (e) { alert("Failed to clear question. Check connection."); }
       };
 
       if (viewState === 'list') {
@@ -762,10 +754,8 @@
           </div>
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row p-4 gap-4">
             <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pr-1">
-              
               <button onClick={toggleFocusMode} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 border transition-all ${gameData.focusModeEnabled ? 'bg-red-600/90 border-red-400 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'glass-panel text-slate-400 border-white/5 hover:bg-white/5'}`}>
-                {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />}
-                <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
+                {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />} <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
               </button>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
@@ -777,7 +767,7 @@
                 </div>
                 {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
                 <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionInput} onChange={(e) => setQuestionInput(e.target.value)} />
-                <div className="flex gap-2"><button onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
+                <div className="flex gap-2"><button type="button" onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button type="button" onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
               </div>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
