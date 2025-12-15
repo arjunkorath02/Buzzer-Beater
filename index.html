@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BuzzerBeater</title>
   
-  <!-- App Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23f43f5e'/%3E%3Cpath d='M13 2L3 14h9v8l10-12h-9l1-8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
   <style>
@@ -118,7 +115,6 @@
 <body>
   <div class="liquid-bg"></div>
 
-  <!-- Initial Loading Screen -->
   <div id="loading-screen">
     <div class="spinner"></div>
     <p class="tracking-widest uppercase text-xs font-bold opacity-70">Initializing...</p>
@@ -126,7 +122,6 @@
 
   <div id="root"></div>
 
-  <!-- Main Application Script -->
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18.2.0';
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
@@ -477,7 +472,6 @@
       const sortedPlayers = useMemo(() => Object.values(game.players || {}).sort((a, b) => b.score - a.score), [game.players]);
       const isBuzzerEnabled = game.buzzerOpen && game.timer > 0 && !buzzed;
 
-      // Ensure locked screen only shows if mode is actively enabled by host
       if (player.locked && game.focusModeEnabled) {
         return (
           <div className="min-h-screen bg-[#1a0505] text-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
@@ -679,17 +673,14 @@
       const activateRound = async (r) => {
         const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
         
-        // --- NEW LOGIC START ---
         // Tie-breaker logic: Anyone with a score >= the cutoff score qualifies.
         let qIds = [];
         if (sorted.length <= r.qualifiers) {
-           qIds = sorted.map(p => p.id); // Everyone qualifies if fewer players than spots
+           qIds = sorted.map(p => p.id); 
         } else {
            const cutoffScore = sorted[r.qualifiers - 1].score;
-           // Include everyone with score >= cutoffScore
            qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id);
         }
-        // --- NEW LOGIC END ---
 
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
@@ -955,3 +946,4 @@
   </script>
 </body>
 </html>
+```eof
