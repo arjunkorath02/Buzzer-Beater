@@ -197,35 +197,29 @@
         if (!AudioContext) return;
         const ctx = new AudioContext();
         
-        // Realistic Buzzer Synthesis (Mechanical Buzz)
+        // Realistic Buzzer Synthesis
         const t = ctx.currentTime;
         const duration = 0.6;
         
-        // Create an oscillator with specific type, freq, detune and volume
         const createOsc = (type, freq, detune, vol) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = type;
             osc.frequency.value = freq;
             osc.detune.value = detune;
-            
             osc.connect(gain);
             gain.connect(ctx.destination);
-            
-            // Envelope (Attack, Sustain, Release)
             gain.gain.setValueAtTime(0, t);
             gain.gain.linearRampToValueAtTime(vol, t + 0.05);
             gain.gain.setValueAtTime(vol, t + duration - 0.1);
             gain.gain.linearRampToValueAtTime(0, t + duration);
-            
             osc.start(t);
             osc.stop(t + duration);
         };
 
-        // Combine waveforms for a rich, harsh texture
-        createOsc('square', 110, 0, 0.25);       // Main Body
-        createOsc('sawtooth', 110, 25, 0.2);    // Dissonance (Detuned)
-        createOsc('square', 220, 0, 0.05);      // Harmonic bite
+        createOsc('square', 110, 0, 0.25);
+        createOsc('sawtooth', 110, 25, 0.2);
+        createOsc('square', 220, 0, 0.05);
 
       } catch (e) { console.error("Audio error", e); }
     };
@@ -483,7 +477,8 @@
       const sortedPlayers = useMemo(() => Object.values(game.players || {}).sort((a, b) => b.score - a.score), [game.players]);
       const isBuzzerEnabled = game.buzzerOpen && game.timer > 0 && !buzzed;
 
-      if (player.locked) {
+      // Ensure locked screen only shows if mode is actively enabled by host
+      if (player.locked && game.focusModeEnabled) {
         return (
           <div className="min-h-screen bg-[#1a0505] text-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
             <div className="glass-panel bg-red-900/20 border-red-500/50 p-10 rounded-3xl shadow-2xl max-w-md">
@@ -660,7 +655,19 @@
       };
 
       const toggleFocusMode = async () => {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { focusModeEnabled: !gameData.focusModeEnabled });
+        const newStatus = !gameData.focusModeEnabled;
+        const updates = { focusModeEnabled: newStatus };
+        
+        // AUTO UNLOCK ALL PLAYERS WHEN TURNING OFF MODE
+        if (!newStatus && gameData.players) {
+           Object.keys(gameData.players).forEach(pid => {
+             if (gameData.players[pid].locked) {
+               updates[`players.${pid}.locked`] = false;
+             }
+           });
+        }
+        
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), updates);
       };
 
       const resetBuzzers = async () => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { buzzes: [] });
