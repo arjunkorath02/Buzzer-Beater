@@ -11,8 +11,7 @@
     :root { --glass: rgba(15, 15, 20, 0.85); --border: rgba(255, 255, 255, 0.1); }
     body { margin: 0; font-family: 'Inter', sans-serif; background: #000; color: #fff; background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%); min-height: 100vh; overflow-x: hidden; }
     .glass { background: var(--glass); backdrop-filter: blur(25px); border: 1px solid var(--border); }
-    .glass-input { background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; outline: none; transition: all 0.2s; }
-    .glass-input:focus { border-color: rgba(59, 130, 246, 0.5); }
+    .glass-input { background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; outline: none; }
     .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -27,7 +26,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, collection, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { Trophy, Zap, Plus, Minus, ChevronRight, UserPlus, Trash2, LogOut, List, Settings, Play, Edit2, Check, X } from 'https://esm.sh/lucide-react@0.294.0';
+    import { Trophy, Zap, Plus, Minus, ChevronRight, UserPlus, Trash2, LogOut, List, Settings, Play, Edit2, Download } from 'https://esm.sh/lucide-react@0.294.0';
 
     const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
@@ -45,7 +44,6 @@
     const getRef = (code) => doc(db, 'gameRooms', code);
     const genCode = (n) => Array.from({length:n}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'.charAt(Math.floor(Math.random()*32))).join('');
 
-    // --- AUDIO ENGINE ---
     let audioCtx = null;
     const playSound = (freq, duration, type = 'sine', vol = 0.1) => {
       try {
@@ -70,11 +68,9 @@
       const [activeId, setActiveId] = useState(null);
       const [game, setGame] = useState(null);
       const [pName, setPName] = useState('');
-      
       const [rTime, setRTime] = useState(30);
       const [rQual, setRQual] = useState(10);
       const [editRoundId, setEditRoundId] = useState(null);
-
       const prevB = useRef(0);
       const prevT = useRef(30);
 
@@ -112,27 +108,16 @@
         return () => clearInterval(timer);
       }, [game?.buzzerOpen, game?.timer, activeId]);
 
-      const deleteRound = async (id) => {
-        const updatedRounds = game.rounds.filter(r => r.id !== id);
-        await updateDoc(getRef(activeId), { rounds: updatedRounds });
-      };
-
-      const saveEditRound = async (id) => {
-        const updatedRounds = game.rounds.map(r => r.id === id ? { ...r, time: parseInt(rTime), qualifiers: parseInt(rQual) } : r);
-        await updateDoc(getRef(activeId), { rounds: updatedRounds });
-        setEditRoundId(null);
-      };
-
       if (view === 'list') return (
         <div className="p-10 max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-10"><h1 className="text-3xl font-black italic">BuzzerBeater Host</h1><button onClick={() => signOut(auth)} className="text-xs font-bold text-slate-500 hover:text-white uppercase">Logout</button></div>
+          <div className="flex justify-between items-center mb-10"><h1 className="text-3xl font-black italic">Host Dashboard</h1><button onClick={() => signOut(auth)} className="text-xs font-bold text-slate-500 hover:text-white uppercase">Logout</button></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onClick={async () => {
               const c = genCode(6);
               await setDoc(getRef(c), { hostId: user.uid, code: c, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, rounds: [], currentRound: 0, createdAt: serverTimestamp() });
               setActiveId(c); setView('lobby');
             }} className="glass p-12 rounded-[2.5rem] border-dashed border-2 flex flex-col items-center cursor-pointer hover:bg-white/5 transition">
-              <Plus size={48} className="text-blue-500 mb-2"/> <span className="font-bold">New Tournament</span>
+              <Plus size={48} className="text-blue-500 mb-2"/> <span className="font-bold">New Room</span>
             </div>
             {games.map(g => (
               <div key={g.id} onClick={() => { setActiveId(g.id); setView('lobby'); }} className="glass p-8 rounded-[2rem] cursor-pointer hover:bg-white/5 transition border-white/5">
@@ -147,65 +132,37 @@
       return (
         <div className="min-h-screen flex flex-col">
           <div className="glass p-4 flex justify-between items-center sticky top-0 z-20">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button>
-              <div className="font-mono font-bold text-yellow-500 text-2xl">{game?.code}</div>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className={`text-4xl font-mono font-bold ${game?.timer <= 5 ? 'text-red-500' : 'text-white'}`}>{game?.timer}s</div>
-              <button onClick={() => {
-                const isReset = game.timer === 0;
-                updateDoc(getRef(activeId), { 
-                  buzzerOpen: isReset ? false : !game.buzzerOpen, 
-                  buzzes: (isReset || !game.buzzerOpen) ? [] : game.buzzes, 
-                  timer: isReset ? game.initialTimer : game.timer 
-                });
-              }} className={`px-10 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition ${game?.timer === 0 ? 'bg-blue-600' : (game?.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600')}`}>
-                {game?.timer === 0 ? 'Reset' : (game?.buzzerOpen ? 'Stop' : 'Start')}
-              </button>
-            </div>
+            <div className="flex items-center gap-4"><button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button><div className="font-mono font-bold text-yellow-500 text-2xl">{game?.code}</div></div>
+            <div className="flex items-center gap-6"><div className={`text-4xl font-mono font-bold ${game?.timer <= 5 ? 'text-red-500' : 'text-white'}`}>{game?.timer}s</div><button onClick={() => updateDoc(getRef(activeId), { buzzerOpen: game.timer === 0 ? false : !game.buzzerOpen, buzzes: (game.timer === 0 || !game.buzzerOpen) ? [] : game.buzzes, timer: game.timer === 0 ? game.initialTimer : game.timer })} className={`px-10 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition ${game?.timer === 0 ? 'bg-blue-600' : (game?.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600')}`}>{game?.timer === 0 ? 'Reset' : (game?.buzzerOpen ? 'Stop' : 'Start')}</button></div>
           </div>
-
           <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="space-y-6">
               <div className="glass p-6 rounded-3xl">
-                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2"><Settings size={14}/> Round Presets</h3>
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest"><Settings size={14}/> Round Presets</h3>
                 <div className="space-y-3 p-3 bg-black/20 rounded-2xl mb-4">
                   <div className="flex justify-between text-xs"><span>Seconds</span><input type="number" value={rTime} onChange={e=>setRTime(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
                   <div className="flex justify-between text-xs"><span>Qualifiers</span><input type="number" value={rQual} onChange={e=>setRQual(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
-                  {editRoundId ? (
-                    <button onClick={() => saveEditRound(editRoundId)} className="w-full bg-blue-600 py-2 rounded-xl text-[10px] font-bold">Save Changes</button>
-                  ) : (
+                  <button onClick={async () => {
+                    const newR = { id: Date.now(), time: parseInt(rTime), qualifiers: parseInt(rQual) };
+                    await updateDoc(getRef(activeId), { rounds: arrayUnion(newR) });
+                  }} className="w-full bg-white/10 py-2 rounded-xl text-[10px] font-bold">Add Preset</button>
+                </div>
+                <div className="space-y-2">{(game?.rounds || []).map((r,idx) => (
+                  <div key={r.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-xs font-bold"><span>R{idx+1}: {r.time}s • Top {r.qualifiers}</span><button onClick={async () => {
+                        const updated = game.rounds.filter(rnd => rnd.id !== r.id);
+                        await updateDoc(getRef(activeId), { rounds: updated });
+                    }} className="text-red-500"><Trash2 size={12}/></button></div>
                     <button onClick={async () => {
-                      const newR = { id: Date.now(), time: parseInt(rTime), qualifiers: parseInt(rQual) };
-                      await updateDoc(getRef(activeId), { rounds: arrayUnion(newR) });
-                    }} className="w-full bg-white/10 py-2 rounded-xl text-[10px] font-bold">Add Preset</button>
-                  )}
-                </div>
-                <div className="space-y-2">
-                   {(game?.rounds || []).map(r => (
-                     <div key={r.id} className={`p-4 rounded-2xl border flex flex-col gap-3 ${game.currentRound === r.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/10'}`}>
-                       <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold">Time: {r.time}s • Top {r.qualifiers}</span>
-                          <div className="flex gap-2">
-                            <button onClick={() => { setEditRoundId(r.id); setRTime(r.time); setRQual(r.qualifiers); }} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><Edit2 size={12}/></button>
-                            <button onClick={() => deleteRound(r.id)} className="p-1.5 hover:bg-red-500/20 rounded text-red-500"><Trash2 size={12}/></button>
-                          </div>
-                       </div>
-                       <button onClick={async () => {
-                         const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
-                         const updates = {};
-                         players.forEach((p, i) => {
-                           updates[`players.${p.id}.isActive`] = (game.rounds.indexOf(r) === 0) ? true : (i < r.qualifiers);
-                         });
-                         await updateDoc(getRef(activeId), { ...updates, currentRound: game.rounds.indexOf(r) + 1, timer: r.time, initialTimer: r.time, buzzerOpen: false, buzzes: [] });
-                       }} className="w-full bg-blue-600/40 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition">Activate Round</button>
-                     </div>
-                   ))}
-                </div>
+                        const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
+                        const updates = {};
+                        players.forEach((p, i) => { updates[`players.${p.id}.isActive`] = (idx === 0) ? true : (i < r.qualifiers); });
+                        await updateDoc(getRef(activeId), { ...updates, currentRound: idx + 1, timer: r.time, initialTimer: r.time, buzzerOpen: false, buzzes: [] });
+                    }} className="w-full bg-blue-600/40 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-widest">Activate</button>
+                  </div>
+                ))}</div>
               </div>
             </div>
-
             <div className="lg:col-span-2 glass rounded-[2.5rem] overflow-hidden flex flex-col h-[650px]">
                <div className="p-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
                  <h3 className="text-xs font-bold text-slate-500 uppercase">Leaderboard</h3>
@@ -222,23 +179,20 @@
                <div className="overflow-y-auto flex-1">
                  <table className="w-full text-left">
                    <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5 sticky top-0 bg-[#0c0c10]">
-                     <tr><th className="p-5">Rank</th><th className="p-5">Name</th><th className="p-5 text-right">Score</th><th className="p-5">Status</th><th className="p-5"></th></tr>
+                     <tr><th className="p-5">Rank</th><th className="p-5">Name</th><th className="p-5 text-right">Score</th><th className="p-5"></th></tr>
                    </thead>
-                   <tbody>
-                     {Object.values(game?.players || {}).sort((a,b)=>b.score-a.score).map((p, idx) => (
+                   <tbody>{Object.values(game?.players || {}).sort((a,b)=>b.score-a.score).map((p, idx) => (
                        <tr key={p.id} className={`border-b border-white/5 transition ${!p.isActive ? 'opacity-20 grayscale' : 'hover:bg-white/5'}`}>
                          <td className="p-5 font-mono text-xs text-slate-500">#{idx + 1}</td>
                          <td className="p-5 font-bold">{p.name} <span className="block text-[10px] text-yellow-500 font-mono">{p.code}</span></td>
                          <td className="p-5 text-right font-mono text-2xl font-bold">{p.score}</td>
-                         <td className="p-5"><span className={`text-[8px] px-2 py-1 rounded-full font-black ${p.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{p.isActive ? 'QUALIFIED' : 'ELIMINATED'}</span></td>
                          <td className="p-5 flex justify-end gap-2">
                             <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score + 5 })} className="p-2 glass rounded-lg text-emerald-400"><Plus size={16}/></button>
                             <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score - 5 })} className="p-2 glass rounded-lg text-rose-400"><Minus size={16}/></button>
-                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>
+                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-600 hover:text-red-500 transition"><Trash2 size={16}/></button>
                          </td>
                        </tr>
-                     ))}
-                   </tbody>
+                     ))}</tbody>
                  </table>
                </div>
             </div>
@@ -250,27 +204,15 @@
     // --- PLAYER VIEW ---
     const PlayerView = ({ game, player, code }) => {
       const [showLB, setShowLB] = useState(false);
-      
-      // CRITICAL FIX: Ensure game and player exist before checking sub-properties
-      if (!game || !player) return (
-        <div className="min-h-screen flex items-center justify-center p-8 bg-black">
-          <div className="flex flex-col items-center gap-4">
-            <div className="spinner"></div>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Connecting to Room...</p>
-          </div>
-        </div>
-      );
+      if (!game || !player) return null;
 
-      const isMyB = (game.buzzes || []).find(b => b.playerId === player.id);
-      const myRank = (game.buzzes || []).findIndex(b => b.playerId === player.id) + 1;
+      const buzzes = game.buzzes || [];
+      const myBuzz = buzzes.find(b => b.playerId === player.id);
+      const myRank = buzzes.findIndex(b => b.playerId === player.id) + 1;
 
       if (!player.isActive) return (
-        <div className="min-h-screen flex items-center justify-center p-8 text-center bg-[#0a0000]">
-          <div className="glass p-12 rounded-[3rem] border-red-500/30">
-            <Trophy size={64} className="text-red-500 mx-auto mb-6 opacity-20" />
-            <h2 className="text-4xl font-black mb-2 text-red-500 uppercase tracking-tighter">Eliminated</h2>
-            <p className="text-slate-400 text-sm">Better luck next time!</p>
-          </div>
+        <div className="min-h-screen flex items-center justify-center p-8 bg-black">
+          <div className="glass p-12 rounded-[3rem] text-center"><Trophy size={64} className="text-red-500 mx-auto mb-6 opacity-20" /><h2 className="text-4xl font-black mb-2 text-red-500 uppercase tracking-tighter">Eliminated</h2></div>
         </div>
       );
 
@@ -286,26 +228,26 @@
             <div className="flex flex-col items-center">
                 <button 
                 onClick={async () => {
-                    if (!game.buzzerOpen || isMyB || game.timer === 0) return;
-                    await updateDoc(getRef(code), { buzzes: arrayUnion({ playerId: player.id, playerName: player.name, timestamp: Date.now() }) });
+                    if (!game.buzzerOpen || myBuzz || game.timer === 0) return;
+                    // Critical Fix: Push to Firestore and wait for local update
+                    await updateDoc(getRef(code), { 
+                        buzzes: arrayUnion({ playerId: player.id, playerName: player.name, timestamp: Date.now() }) 
+                    });
                 }} 
-                disabled={!game.buzzerOpen || !!isMyB || game.timer === 0}
-                className={`w-72 h-72 rounded-full transition-all active:scale-95 border-8 flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !isMyB && game.timer > 0 ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400 shadow-[0_0_80px_rgba(244,63,94,0.4)] animate-pulse' : 'bg-slate-900 border-white/5 opacity-50'}`}
+                disabled={!game.buzzerOpen || !!myBuzz || game.timer === 0}
+                className={`w-72 h-72 rounded-full transition-all active:scale-95 border-8 flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !myBuzz && game.timer > 0 ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400 shadow-[0_0_80px_rgba(244,63,94,0.4)] animate-pulse' : 'bg-slate-900 border-white/5 opacity-50'}`}
                 >
-                    <Zap size={80} />
-                    <span className="font-black text-2xl tracking-widest uppercase">{isMyB ? 'Locked' : 'Buzz'}</span>
+                    <Zap size={80} /><span className="font-black text-2xl tracking-widest uppercase">{myBuzz ? 'Locked' : 'Buzz'}</span>
                 </button>
-                {isMyB && <div className="mt-12 text-yellow-400 text-7xl font-black italic animate-bounce drop-shadow-2xl">RANK: {myRank}</div>}
-                {!game.buzzerOpen && !isMyB && <div className="mt-12 text-slate-500 uppercase font-black tracking-widest opacity-50">Wait for Start</div>}
-                {game.timer === 0 && !isMyB && <div className="mt-12 text-red-500 font-black uppercase tracking-widest">Time Up</div>}
+                {myBuzz && <div className="mt-12 text-yellow-400 text-7xl font-black italic animate-bounce">RANK: {myRank}</div>}
             </div>
           ) : (
-            <div className="w-full max-w-sm glass rounded-[2.5rem] p-8 mt-20 animate-in slide-in-from-bottom duration-300 h-[60vh] flex flex-col">
-              <div className="flex justify-between items-center mb-8 flex-shrink-0"><h3 className="text-sm font-black uppercase text-yellow-500 tracking-widest">Leaderboard</h3><button onClick={()=>setShowLB(false)} className="text-[10px] text-slate-600 uppercase font-black">Close</button></div>
-              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+            <div className="w-full max-w-sm glass rounded-[2.5rem] p-8 mt-20 animate-in slide-in-from-bottom flex-1 overflow-hidden flex flex-col">
+              <div className="flex justify-between items-center mb-6"><h3 className="text-sm font-black uppercase text-yellow-500 tracking-widest">Leaderboard</h3><button onClick={()=>setShowLB(false)} className="text-[10px] text-slate-600 uppercase font-black">Close</button></div>
+              <div className="space-y-4 overflow-y-auto pr-2">
                 {Object.values(game.players || {}).sort((a,b)=>b.score-a.score).map((p, i) => (
                   <div key={p.id} className={`flex justify-between p-4 rounded-2xl ${p.id === player.id ? 'bg-blue-600/20 border border-blue-500/40' : 'bg-white/5'} ${!p.isActive ? 'opacity-30' : ''}`}>
-                    <div className="flex gap-4 items-center"><span className="text-xs font-mono text-slate-500">#{i+1}</span><span className="text-sm font-bold">{p.name}</span></div>
+                    <div className="flex gap-4 items-center font-bold"><span>#{i+1}</span><span className="text-sm">{p.name}</span></div>
                     <span className="font-mono font-black text-blue-400">{p.score}</span>
                   </div>
                 ))}
@@ -335,27 +277,42 @@
         });
       }, [code]);
 
-      if (!g) return <div className="p-20 text-center text-4xl font-black italic opacity-20">CONNECTING...</div>;
-      const ps = Object.values(g.players || {}).filter(p=>p.isActive).sort((a,b)=>b.score-a.score);
-      const bz = (g.buzzes || []).slice(0, 5);
+      if (!g) return null;
+      const buzzes = (g.buzzes || []).slice(0, 5);
+      const leaderboard = Object.values(g.players || {}).sort((a,b)=>b.score-a.score).slice(0, 10);
 
       return (
-        <div className="min-h-screen flex flex-col p-12">
-          <div className="glass rounded-[4rem] p-16 mb-12 flex justify-between items-center shadow-2xl border-white/5">
-            <div><div className="text-slate-500 uppercase text-xs font-black mb-4 tracking-widest">Join Code</div><div className="text-[10rem] font-black font-mono text-yellow-400 leading-none">{g.code}</div></div>
-            <div className={`text-[20rem] font-black font-mono leading-none ${g.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{g.timer}s</div>
-            <div className="text-right"><div className="text-slate-500 uppercase text-xs font-black mb-4 tracking-widest">Qualifiers</div><div className="text-[10rem] font-black text-blue-500 leading-none">{ps.length}</div></div>
+        <div className="min-h-screen flex flex-col p-10">
+          <div className="flex justify-between items-center mb-8 px-10">
+             <div className="glass py-4 px-8 rounded-full border-white/5"><span className="text-slate-500 uppercase text-[10px] font-black mr-4 tracking-widest">Room Code:</span><span className="text-2xl font-mono font-black text-yellow-400">{g.code}</span></div>
+             <div className={`text-9xl font-black font-mono ${g.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{g.timer}s</div>
+             <div className="glass py-4 px-8 rounded-full border-white/5"><span className="text-slate-500 uppercase text-[10px] font-black mr-4 tracking-widest">Qualifiers:</span><span className="text-2xl font-mono font-black text-blue-400">{Object.values(g.players||{}).filter(p=>p.isActive).length}</span></div>
           </div>
-          <div className="flex-1 glass rounded-[4rem] p-16 overflow-hidden border-white/5 relative">
-            <h2 className="text-5xl font-black mb-12 text-pink-500 uppercase tracking-widest italic flex items-center gap-6"><Zap size={48}/> Current Queue</h2>
-            <div className="space-y-8">
-              {bz.map((b, i) => (
-                <div key={i} className="glass p-10 rounded-[3rem] flex justify-between items-center animate-in zoom-in duration-500">
-                  <div className="flex items-center gap-12"><div className="bg-white text-black w-24 h-24 rounded-full flex items-center justify-center font-black text-6xl shadow-2xl">{i+1}</div><div className="text-8xl font-black tracking-tight">{b.playerName}</div></div>
-                  <div className="text-6xl font-mono text-slate-500 font-bold">{i===0 ? <span className="text-emerald-400 uppercase tracking-widest font-black italic">First</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
-                </div>
-              ))}
-              {bz.length === 0 && <div className="text-center text-slate-800 text-9xl font-black italic mt-32 opacity-10">READY</div>}
+
+          <div className="flex-1 flex gap-8">
+            <div className="flex-[3] glass rounded-[3.5rem] p-12">
+               <h2 className="text-4xl font-black mb-8 text-pink-500 uppercase tracking-widest italic flex items-center gap-6"><Zap size={48}/> Priority Queue</h2>
+               <div className="space-y-6">
+                 {buzzes.map((b, i) => (
+                   <div key={i} className="glass p-8 rounded-[2rem] flex justify-between items-center animate-in zoom-in">
+                     <div className="flex items-center gap-8"><div className="bg-white text-black w-20 h-20 rounded-full flex items-center justify-center font-black text-6xl">{i+1}</div><div className="text-7xl font-black tracking-tight">{b.playerName}</div></div>
+                     <div className="text-4xl font-mono text-slate-500 font-bold">{i===0 ? <span className="text-emerald-400 font-black italic">WINNER</span> : `+${b.timestamp - buzzes[0].timestamp}ms`}</div>
+                   </div>
+                 ))}
+                 {buzzes.length === 0 && <div className="text-center text-slate-800 text-9xl font-black italic mt-32 opacity-10">READY</div>}
+               </div>
+            </div>
+
+            <div className="flex-[1.5] glass rounded-[3.5rem] p-10 flex flex-col">
+               <h2 className="text-2xl font-black mb-8 text-blue-400 uppercase tracking-widest italic"><Trophy size={24} className="inline mr-3"/> Standings</h2>
+               <div className="space-y-3">
+                 {leaderboard.map((p, i) => (
+                   <div key={p.id} className={`flex justify-between items-center p-4 rounded-2xl bg-white/5 border border-white/5 ${!p.isActive ? 'opacity-20' : ''}`}>
+                      <div className="flex items-center gap-4"><span className="text-xs font-mono text-slate-500">#{i+1}</span><span className="text-xl font-bold">{p.name}</span></div>
+                      <span className="text-2xl font-mono font-black text-yellow-400">{p.score}</span>
+                   </div>
+                 ))}
+               </div>
             </div>
           </div>
         </div>
