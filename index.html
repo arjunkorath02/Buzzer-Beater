@@ -11,83 +11,28 @@
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-
     :root {
       --glass-border: rgba(255, 255, 255, 0.08);
       --glass-bg: rgba(20, 20, 25, 0.6);
       --glass-highlight: rgba(255, 255, 255, 0.03);
     }
-
     body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background-color: #000;
-      background-image: 
-        radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), 
-        radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%);
-      color: #fff;
-      overflow-x: hidden;
+      margin: 0; font-family: 'Inter', sans-serif; background-color: #000;
+      background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%);
+      color: #fff; overflow-x: hidden;
     }
-
-    .liquid-bg {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: -1;
-      background: 
-        radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-        radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-        radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-      filter: blur(100px);
-      opacity: 0.8;
-    }
-
-    .glass-panel {
-      background: var(--glass-bg);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-      background-image: linear-gradient(145deg, var(--glass-highlight) 0%, transparent 100%);
-    }
-
-    .glass-input {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: all 0.3s ease;
-    }
-    .glass-input:focus {
-      border-color: rgba(255, 255, 255, 0.3);
-      background: rgba(0, 0, 0, 0.5);
-    }
-
-    .glass-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      transition: all 0.2s ease;
-    }
-    .glass-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
-
-    #loading-screen {
-      position: fixed; inset: 0; display: flex; flex-direction: column; 
-      align-items: center; justify-content: center; color: #a1a1aa; 
-      background: #09090b; z-index: 9999;
-    }
-    .spinner {
-      width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1); 
-      border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
+    .liquid-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; filter: blur(100px); opacity: 0.8; background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%); }
+    .glass-panel { background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+    .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.3s ease; color: white; }
+    .glass-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease; }
+    #loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #09090b; z-index: 9999; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="liquid-bg"></div>
-
-  <div id="loading-screen">
-    <div class="spinner"></div>
-    <p class="tracking-widest uppercase text-xs font-bold opacity-70">Initializing...</p>
-  </div>
-
+  <div id="loading-screen"><div class="spinner"></div></div>
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
@@ -112,90 +57,56 @@
     const db = getFirestore(app);
 
     const getGameDocRef = (code) => doc(db, 'gameRooms', code);
-    const generateCode = (length = 4) => {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let result = '';
-      for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-      return result;
+    const generateCode = (n) => {
+      const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      return Array.from({length:n}, () => c.charAt(Math.floor(Math.random()*c.length))).join('');
     };
 
-    const formatTime = (seconds) => {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    };
+    const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
-    let audioCtx = null;
-    const playSound = (type) => {
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const t = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        if (type === 'buzzer') {
-            osc.type = 'square'; osc.frequency.value = 110;
-            gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-            osc.start(); osc.stop(t + 0.5);
-        } else if (type === 'ding') {
-            osc.type = 'sine'; osc.frequency.setValueAtTime(800, t);
-            osc.frequency.exponentialRampToValueAtTime(400, t + 0.1);
-            gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-            osc.start(); osc.stop(t + 0.3);
-        }
-      } catch (e) {}
-    };
+    // --- SHARED LOADING ---
+    const InlineLoading = ({ msg }) => (
+      <div className="flex flex-col items-center justify-center p-20 gap-4 text-slate-400">
+        <RefreshCw className="animate-spin" />
+        <p className="text-xs uppercase tracking-widest">{msg || 'Syncing...'}</p>
+      </div>
+    );
 
-    const ProjectorView = ({ gameCode, onExit }) => {
+    // --- PROJECTOR ---
+    const ProjectorView = ({ gameCode }) => {
       const [game, setGame] = useState(null);
-      const prevBuzzCount = useRef(0);
+      useEffect(() => onSnapshot(getGameDocRef(gameCode), (d) => setGame(d.data())), [gameCode]);
 
-      useEffect(() => {
-        const unsubscribe = onSnapshot(getGameDocRef(gameCode), (doc) => { 
-          if (doc.exists()) {
-            const data = doc.data(); setGame(data);
-            if (data.buzzes?.length > prevBuzzCount.current) playSound('ding');
-            prevBuzzCount.current = data.buzzes?.length || 0;
-          }
-        });
-        return () => unsubscribe();
-      }, [gameCode]);
-
-      if (!game) return <div className="flex items-center justify-center min-h-screen">Loading Projector...</div>;
-      const sortedPlayers = Object.values(game.players || {}).sort((a, b) => b.score - a.score);
+      if (!game) return <InlineLoading msg="Connecting Projector..." />;
+      const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
       const buzzes = (game.buzzes || []).slice(0, 5);
 
       return (
-        <div className="min-h-screen text-white flex flex-col p-8 overflow-hidden">
+        <div className="min-h-screen text-white flex flex-col p-8">
            <div className="glass-panel rounded-3xl p-8 mb-6 flex justify-between items-center">
-              <div><div className="text-slate-400 text-xs uppercase tracking-widest mb-2">Room Code</div><div className="text-8xl font-black font-mono text-yellow-400">{game.code}</div></div>
+              <div><div className="text-xs uppercase text-slate-500 mb-2">Room</div><div className="text-8xl font-black font-mono text-yellow-400">{game.code}</div></div>
               <div className={`text-[12rem] font-black font-mono ${game.timer <= 5 && game.timer > 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{formatTime(game.timer)}</div>
-              <div className="text-right"><div className="text-slate-400 text-xs uppercase tracking-widest mb-2">Players</div><div className="text-8xl font-black text-blue-400">{sortedPlayers.length}</div></div>
+              <div className="text-right"><div className="text-xs uppercase text-slate-500 mb-2">Players</div><div className="text-8xl font-black text-blue-400">{players.length}</div></div>
            </div>
            <div className="flex-1 flex gap-8 min-h-0">
-              <div className="flex-1 glass-panel rounded-3xl p-8 flex flex-col">
-                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-pink-400 uppercase tracking-widest"><Zap /> Fastest Fingers</h2>
-                 <div className="flex-1 space-y-4">
-                    {buzzes.length === 0 && <div className="text-center text-slate-600 text-4xl mt-20 font-light">Waiting for buzz...</div>}
+              <div className="flex-1 glass-panel rounded-3xl p-8">
+                 <h2 className="text-2xl font-bold mb-6 text-pink-400 uppercase tracking-widest flex items-center gap-2"><Zap /> Buzzers</h2>
+                 <div className="space-y-4">
                     {buzzes.map((b, i) => (
-                      <div key={i} className="glass-btn p-8 rounded-2xl flex justify-between items-center animate-in slide-in-from-left duration-300">
-                         <div className="flex items-center gap-6">
-                            <div className="bg-white text-black w-16 h-16 rounded-full flex items-center justify-center font-black text-3xl">{i + 1}</div>
-                            <div className="text-5xl font-bold">{b.playerName}</div>
-                         </div>
-                         <div className="font-mono text-3xl text-slate-400">{i === 0 ? <span className="text-green-400 font-bold">WINNER</span> : `+${b.timestamp - buzzes[0].timestamp}ms`}</div>
+                      <div key={i} className="glass-btn p-6 rounded-2xl flex justify-between items-center animate-in slide-in-from-left">
+                        <div className="flex items-center gap-6"><div className="bg-white text-black w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl">{i+1}</div><div className="text-4xl font-bold">{b.playerName}</div></div>
+                        <div className="text-2xl font-mono text-slate-400">{i===0 ? "WINNER" : `+${b.timestamp - buzzes[0].timestamp}ms`}</div>
                       </div>
                     ))}
                  </div>
               </div>
-              <div className="w-1/3 glass-panel rounded-3xl p-8 flex flex-col">
-                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-yellow-400 uppercase tracking-widest"><Trophy /> Standings</h2>
-                 <div className="flex-1 overflow-y-auto pr-2">
-                    {sortedPlayers.map((p, i) => (
-                      <div key={p.id} className="flex justify-between items-center py-4 border-b border-white/5">
-                        <div className="flex items-center gap-4"><span className="text-slate-500 font-mono">#{i+1}</span><span className="text-2xl font-bold">{p.name}</span></div>
-                        <div className="text-3xl font-mono font-bold text-yellow-500">{p.score}</div>
+              <div className="w-1/3 glass-panel rounded-3xl p-8 overflow-hidden flex flex-col">
+                 <h2 className="text-2xl font-bold mb-6 text-yellow-400 uppercase tracking-widest flex items-center gap-2"><Trophy /> Standings</h2>
+                 <div className="overflow-y-auto pr-2 space-y-4">
+                    {players.map((p, i) => (
+                      <div key={p.id} className="flex justify-between items-center py-2 border-b border-white/5">
+                        <span className="text-xl font-bold"><span className="text-slate-500 text-sm font-mono mr-3">#{i+1}</span>{p.name}</span>
+                        <span className="text-2xl font-mono font-bold text-yellow-500">{p.score}</span>
                       </div>
                     ))}
                  </div>
@@ -205,210 +116,152 @@
       );
     };
 
-    const HostView = ({ user, onLogout }) => {
+    // --- HOST ---
+    const HostView = ({ user, onExit }) => {
       const [viewState, setViewState] = useState('list');
       const [games, setGames] = useState([]);
       const [activeGameId, setActiveGameId] = useState(null);
       const [gameData, setGameData] = useState(null);
       const [newPlayerName, setNewPlayerName] = useState('');
-      const [searchQuery, setSearchQuery] = useState('');
 
       useEffect(() => {
-        if (!user) return;
         const q = query(collection(db, 'gameRooms'), where('hostId', '==', user.uid));
-        return onSnapshot(q, (snaps) => {
-          const list = []; snaps.forEach(d => list.push({ id: d.id, ...d.data() }));
-          setGames(list);
+        return onSnapshot(q, (s) => {
+          const l = []; s.forEach(d => l.push({ id: d.id, ...d.data() }));
+          setGames(l);
         });
       }, [user]);
 
       useEffect(() => {
         if (!activeGameId) return;
-        return onSnapshot(getGameDocRef(activeGameId), (d) => { if(d.exists()) setGameData(d.data()); });
+        return onSnapshot(getGameDocRef(activeGameId), (d) => setGameData(d.data()));
       }, [activeGameId]);
 
       useEffect(() => {
-        let timer;
+        let t;
         if (gameData?.buzzerOpen && gameData?.timer > 0) {
-          timer = setInterval(() => {
-            const next = gameData.timer - 1;
-            updateDoc(getGameDocRef(activeGameId), { timer: next, buzzerOpen: next > 0 });
+          t = setInterval(() => {
+            const n = gameData.timer - 1;
+            updateDoc(getGameDocRef(activeGameId), { timer: n, buzzerOpen: n > 0 });
           }, 1000);
         }
-        return () => clearInterval(timer);
+        return () => clearInterval(t);
       }, [gameData?.buzzerOpen, gameData?.timer]);
 
       const createGame = async () => {
-        const code = generateCode(6);
-        await setDoc(getGameDocRef(code), {
-          hostId: user.uid, code, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, createdAt: serverTimestamp()
-        });
-        setActiveGameId(code); setViewState('lobby');
+        const c = generateCode(6);
+        await setDoc(getGameDocRef(c), { hostId: user.uid, code: c, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, createdAt: serverTimestamp() });
+        setActiveGameId(c); setViewState('lobby');
       };
 
-      const addPlayer = async () => {
-        if (!newPlayerName.trim()) return;
-        const pid = crypto.randomUUID();
-        const pCode = generateCode(4);
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: { id: pid, name: newPlayerName, code: pCode, score: 0, locked: false } });
-        setNewPlayerName('');
-      };
-
-      const removePlayer = async (pid) => {
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: deleteField() });
-      };
-
-      const updateScore = async (pid, delta) => {
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}.score`]: gameData.players[pid].score + delta });
-      };
-
-      const handleToggleBuzzer = () => {
-        const isOpen = gameData.buzzerOpen;
-        updateDoc(getGameDocRef(activeGameId), { buzzerOpen: !isOpen, buzzes: isOpen ? [] : gameData.buzzes, timer: isOpen ? gameData.initialTimer : gameData.timer });
-      };
-
-      // --- CSV EXPORT FUNCTION ---
-      const downloadCSV = () => {
-        const players = Object.values(gameData.players || {});
-        if (players.length === 0) return alert("No players to export");
-
-        const headers = ["Name", "Passcode", "Score"];
-        const rows = players.map(p => [`"${p.name}"`, p.code, p.score]);
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `BuzzerBeater_${gameData.code}_Players.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
-
-      if (viewState === 'list') {
-        return (
-          <div className="p-8 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-10">
-               <h1 className="text-3xl font-black">Host Dashboard</h1>
-               <button onClick={() => setViewState(null)} className="glass-btn px-6 py-2 rounded-full text-sm">Exit Host</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div onClick={createGame} className="glass-panel p-10 rounded-3xl border-dashed border-2 border-white/20 flex flex-col items-center cursor-pointer hover:bg-white/5 transition">
-                <Plus size={40} className="text-blue-400 mb-4" />
-                <span className="font-bold">New Game</span>
+      if (viewState === 'list') return (
+        <div className="p-10 max-w-4xl mx-auto text-white">
+          <div className="flex justify-between items-center mb-10"><h1 className="text-3xl font-black">Dashboard</h1><button onClick={onExit} className="glass-btn px-6 py-2 rounded-full">Exit</button></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div onClick={createGame} className="glass-panel p-10 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center cursor-pointer hover:bg-white/5 transition"><Plus size={40} className="mb-4 text-blue-400" /><span className="font-bold">New Room</span></div>
+            {games.map(g => (
+              <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5">
+                <div className="text-4xl font-mono font-bold text-blue-400">{g.code}</div>
+                <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest">{Object.keys(g.players||{}).length} Players</div>
               </div>
-              {games.map(g => (
-                <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition">
-                  <div className="text-4xl font-mono font-bold text-blue-400 mb-2">{g.code}</div>
-                  <div className="text-sm text-slate-400">{Object.keys(g.players || {}).length} Players Registered</div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
-        );
-      }
+        </div>
+      );
 
-      if (!gameData) return <div className="p-10">Loading Game...</div>;
+      if (!gameData) return <InlineLoading />;
 
       return (
         <div className="min-h-screen flex flex-col">
           <div className="glass-panel p-4 flex justify-between items-center sticky top-0 z-20">
             <button onClick={() => setViewState('list')} className="p-2 hover:bg-white/10 rounded-full"><ChevronRight className="rotate-180" /></button>
-            <div className="text-center">
-              <div className="text-2xl font-mono font-bold text-yellow-500">{gameData.code}</div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">Host Control</div>
-            </div>
+            <div className="text-center"><div className="text-2xl font-mono font-bold text-yellow-500">{gameData.code}</div></div>
             <div className="flex items-center gap-4">
               <div className="text-3xl font-mono font-bold">{formatTime(gameData.timer)}</div>
-              <button onClick={handleToggleBuzzer} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs tracking-widest ${gameData.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                {gameData.buzzerOpen ? 'Stop & Clear' : 'Open Buzzers'}
+              <button onClick={() => updateDoc(getGameDocRef(activeGameId), { buzzerOpen: !gameData.buzzerOpen, buzzes: gameData.buzzerOpen ? [] : gameData.buzzes, timer: gameData.buzzerOpen ? gameData.initialTimer : gameData.timer })} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs ${gameData.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                {gameData.buzzerOpen ? 'Stop' : 'Start'}
               </button>
             </div>
           </div>
-
-          <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6">
-              <div className="glass-panel p-6 rounded-3xl">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Add Player</h3>
-                <div className="flex gap-2">
-                  <input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="Full Name" className="glass-input flex-1 px-4 py-3 rounded-xl outline-none" />
-                  <button onClick={addPlayer} className="bg-blue-600 p-3 rounded-xl"><UserPlus /></button>
-                </div>
-              </div>
-              <div className="glass-panel p-6 rounded-3xl flex-1">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Live Buzzes</h3>
-                <div className="space-y-2">
-                  {(gameData.buzzes || []).map((b, i) => (
-                    <div key={i} className="bg-white/5 p-3 rounded-xl flex justify-between">
-                      <span className="font-bold">{b.playerName}</span>
-                      <span className="text-slate-400 font-mono text-xs">+{b.timestamp - gameData.buzzes[0].timestamp}ms</span>
-                    </div>
-                  ))}
-                </div>
+          <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass-panel p-6 rounded-3xl h-fit">
+              <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Add Player</h3>
+              <div className="flex gap-2">
+                <input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 px-4 py-3 rounded-xl outline-none" />
+                <button onClick={async () => {
+                  const pid = crypto.randomUUID();
+                  await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: { id: pid, name: newPlayerName, code: generateCode(4), score: 0 } });
+                  setNewPlayerName('');
+                }} className="bg-blue-600 p-3 rounded-xl"><UserPlus /></button>
               </div>
             </div>
-
-            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden flex flex-col">
-               <div className="p-6 border-b border-white/10 flex justify-between items-center">
-                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Player List</h3>
-                 <div className="flex items-center gap-3">
-                    <button onClick={downloadCSV} className="flex items-center gap-2 glass-btn px-4 py-1.5 rounded-full text-xs text-blue-400 border-blue-400/30">
-                      <Download size={14} /> Export CSV
-                    </button>
-                    <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input px-4 py-1.5 rounded-full text-xs" />
-                 </div>
-               </div>
-               <div className="overflow-y-auto flex-1">
-                 <table className="w-full text-left">
-                   <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5">
-                     <tr><th className="p-4">Name</th><th className="p-4">Passcode</th><th className="p-4 text-right">Score</th><th className="p-4 text-right">Actions</th></tr>
-                   </thead>
-                   <tbody>
-                     {Object.values(gameData.players || {}).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
-                       <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                         <td className="p-4 font-bold">{p.name}</td>
-                         <td className="p-4"><span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-mono font-bold">{p.code}</span></td>
-                         <td className="p-4 text-right font-mono text-xl">{p.score}</td>
-                         <td className="p-4 text-right flex justify-end gap-2">
-                            <button onClick={() => updateScore(p.id, -1)} className="p-2 hover:bg-white/10 rounded-lg"><Minus size={16} /></button>
-                            <button onClick={() => updateScore(p.id, 1)} className="p-2 hover:bg-white/10 rounded-lg"><Plus size={16} /></button>
-                            <button onClick={() => removePlayer(p.id)} className="p-2 hover:bg-red-500/20 text-red-400 rounded-lg"><Trash2 size={16} /></button>
-                         </td>
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
-               </div>
+            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
+               <table className="w-full text-left">
+                 <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5"><tr><th className="p-4">Name</th><th className="p-4">Passcode</th><th className="p-4 text-right">Score</th><th className="p-4"></th></tr></thead>
+                 <tbody>
+                   {Object.values(gameData.players || {}).map(p => (
+                     <tr key={p.id} className="border-b border-white/5">
+                       <td className="p-4 font-bold">{p.name}</td>
+                       <td className="p-4"><span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded font-mono">{p.code}</span></td>
+                       <td className="p-4 text-right font-mono text-xl">{p.score}</td>
+                       <td className="p-4 flex justify-end gap-2">
+                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score + 1 })} className="p-2 glass-btn rounded"><Plus size={14}/></button>
+                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-red-500"><Trash2 size={14}/></button>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
             </div>
           </div>
         </div>
       );
     };
 
+    // --- PLAYER ---
     const PlayerView = ({ game, player, gameCode }) => {
+      // If data is still loading, show loading screen instead of background only
+      if (!game || !player) return <InlineLoading msg="Waiting for game data..." />;
+
       const isMyBuzz = (game.buzzes || []).find(b => b.playerId === player.id);
+      
       const handleBuzz = async () => {
         if (!game.buzzerOpen || isMyBuzz) return;
-        playSound('buzzer');
-        await updateDoc(getGameDocRef(gameCode), { arrayUnion: { buzzes: { playerId: player.id, playerName: player.name, timestamp: Date.now() } } });
-        await updateDoc(getGameDocRef(gameCode), { buzzes: arrayUnion({ playerId: player.id, playerName: player.name, timestamp: Date.now() }) });
+        await updateDoc(getGameDocRef(gameCode), {
+          buzzes: arrayUnion({
+            playerId: player.id,
+            playerName: player.name,
+            timestamp: Date.now()
+          })
+        });
       };
+
       return (
-        <div className="min-h-screen flex flex-col p-6 items-center">
-          <div className="glass-panel w-full max-w-md p-6 rounded-3xl flex justify-between items-center mb-10">
+        <div className="min-h-screen flex flex-col p-6 items-center justify-center">
+          <div className="glass-panel w-full max-w-sm p-6 rounded-3xl flex justify-between items-center mb-10 absolute top-6">
             <div><div className="text-xl font-bold">{player.name}</div><div className="text-xs text-slate-500">Score: {player.score}</div></div>
             <div className="text-3xl font-mono font-bold text-blue-400">{game.timer}s</div>
           </div>
-          <button onClick={handleBuzz} disabled={!game.buzzerOpen || !!isMyBuzz} className={`w-72 h-72 rounded-full transition-all shadow-2xl flex items-center justify-center flex-col gap-2 ${game.buzzerOpen && !isMyBuzz ? 'bg-gradient-to-br from-rose-500 to-red-700' : 'bg-slate-800 opacity-50'}`}>
-            {isMyBuzz ? <Check size={80} /> : <Zap size={80} />}
-            <span className="font-black text-2xl uppercase">{isMyBuzz ? 'BUZZED' : 'BUZZ'}</span>
+
+          <button 
+            onClick={handleBuzz} 
+            disabled={!game.buzzerOpen || !!isMyBuzz}
+            className={`w-64 h-64 rounded-full transition-all active:scale-90 shadow-2xl flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !isMyBuzz ? 'bg-gradient-to-br from-rose-500 to-red-700' : 'bg-slate-800 opacity-50'}`}
+          >
+            {isMyBuzz ? <Check size={60} /> : <Zap size={60} />}
+            <span className="font-black text-xl uppercase tracking-widest">{isMyBuzz ? 'BUZZED' : 'BUZZ'}</span>
           </button>
-          {isMyBuzz && <div className="mt-10 text-2xl font-bold text-yellow-400">Rank: {(game.buzzes || []).findIndex(b => b.playerId === player.id) + 1}</div>}
+          
+          {isMyBuzz && (
+            <div className="mt-10 text-center animate-bounce">
+              <div className="text-yellow-400 text-3xl font-black">RANK: {(game.buzzes || []).findIndex(b => b.playerId === player.id) + 1}</div>
+            </div>
+          )}
         </div>
       );
     };
 
+    // --- MAIN APP ---
     function BuzzerApp() {
       const [user, setUser] = useState(null);
       const [mode, setMode] = useState(null);
@@ -422,33 +275,44 @@
         onAuthStateChanged(auth, u => {
           setUser(u);
           if (!u) signInAnonymously(auth);
-          document.getElementById('loading-screen').style.display = 'none';
+          const ls = document.getElementById('loading-screen');
+          if (ls) ls.style.display = 'none';
         });
       }, []);
 
       const joinAsPlayer = async () => {
         setError('');
         if (!gameCode || !playerPasscode) return setError("Required fields missing");
-        const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gameCode.toUpperCase())));
-        if (d.empty) return setError("Room not found");
-        const data = d.docs[0].data();
-        const p = Object.values(data.players || {}).find(pl => pl.code === playerPasscode.toUpperCase());
-        if (!p) return setError("Invalid Passcode");
-        setActivePlayer(p);
-        setMode('player_active');
-        onSnapshot(getGameDocRef(data.code), (snap) => {
-          const gData = snap.data();
-          setActiveGame(gData);
-          if(gData.players[p.id]) setActivePlayer(gData.players[p.id]);
-        });
+        
+        try {
+          const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gameCode.toUpperCase())));
+          if (d.empty) return setError("Room not found");
+          
+          const roomData = d.docs[0].data();
+          const p = Object.values(roomData.players || {}).find(pl => pl.code === playerPasscode.toUpperCase());
+          
+          if (!p) return setError("Invalid Passcode");
+
+          setMode('player_active');
+          // Subscribe to real-time updates for BOTH game and player
+          onSnapshot(getGameDocRef(roomData.code), (snap) => {
+            const data = snap.data();
+            if (data) {
+              setActiveGame(data);
+              if (data.players[p.id]) setActivePlayer(data.players[p.id]);
+            }
+          });
+        } catch (e) {
+          setError("Connection error");
+        }
       };
 
-      if (mode === 'host') return <HostView user={user} onLogout={() => setMode(null)} />;
-      if (mode === 'projector') return <ProjectorView gameCode={gameCode} onExit={() => setMode(null)} />;
+      if (mode === 'host') return <HostView user={user} onExit={() => setMode(null)} />;
+      if (mode === 'projector') return <ProjectorView gameCode={gameCode} />;
       if (mode === 'player_active') return <PlayerView game={activeGame} player={activePlayer} gameCode={gameCode} />;
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="min-h-screen flex items-center justify-center p-6 text-white">
           <div className="max-w-md w-full text-center">
             <h1 className="text-5xl font-black mb-10 tracking-tighter">BuzzerBeater</h1>
             <div className="glass-panel p-8 rounded-[2rem] space-y-6 text-left">
