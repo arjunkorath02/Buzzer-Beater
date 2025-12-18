@@ -136,11 +136,9 @@
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
-    // If running in sandbox preview, use provided config.
-    // If running in production (Netlify), use the hardcoded keys.
     const isSandbox = typeof __firebase_config !== 'undefined';
     
-    // REPLACE these keys with your own from Firebase Console for production
+    // Restoration of correct production API key
     const prodConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
       authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
@@ -156,7 +154,7 @@
     const db = getFirestore(app);
     const appId = typeof __app_id !== 'undefined' ? __app_id : "buzzer-game-v1";
 
-    // Helper to get correct collection path based on environment
+    // Helpers
     const getGameDocRef = (gameCode) => {
         if (isSandbox) return doc(db, 'artifacts', appId, 'public', 'data', 'gameRooms', gameCode);
         return doc(db, 'gameRooms', gameCode);
@@ -206,137 +204,82 @@
       });
     };
 
-    // --- AUDIO SYSTEM (SINGLETON) ---
+    // --- AUDIO SYSTEM ---
     let audioCtx = null;
-
     const getAudioCtx = () => {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
     };
 
-    // --- SOUND EFFECTS ---
     const playBuzzerSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        
-        const t = ctx.currentTime;
-        const duration = 0.6;
-        
+        const ctx = getAudioCtx(); if (!ctx) return;
+        const t = ctx.currentTime; const duration = 0.6;
         const createOsc = (type, freq, detune, vol) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = type;
-            osc.frequency.value = freq;
-            osc.detune.value = detune;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(vol, t + 0.05);
-            gain.gain.setValueAtTime(vol, t + duration - 0.1);
-            gain.gain.linearRampToValueAtTime(0, t + duration);
-            osc.start(t);
-            osc.stop(t + duration);
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.type = type; osc.frequency.value = freq; osc.detune.value = detune;
+            osc.connect(gain); gain.connect(ctx.destination);
+            gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(vol, t + 0.05);
+            gain.gain.setValueAtTime(vol, t + duration - 0.1); gain.gain.linearRampToValueAtTime(0, t + duration);
+            osc.start(t); osc.stop(t + duration);
         };
-
-        createOsc('square', 110, 0, 0.25);
-        createOsc('sawtooth', 110, 25, 0.2);
-        createOsc('square', 220, 0, 0.05);
-
+        createOsc('square', 110, 0, 0.25); createOsc('sawtooth', 110, 25, 0.2); createOsc('square', 220, 0, 0.05);
       } catch (e) { console.error("Audio error", e); }
     };
 
     const playDingSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        const ctx = getAudioCtx(); if (!ctx) return;
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
       } catch (e) { console.error("Audio error", e); }
     };
 
-    // --- TIMER SOUNDS ---
     const playTickSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        const ctx = getAudioCtx(); if (!ctx) return;
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(800, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.05);
       } catch (e) {}
     };
 
     const playTimeUpSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        
-        // Double Beep
+        const ctx = getAudioCtx(); if (!ctx) return;
         [0, 0.2].forEach(start => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'square';
-            osc.frequency.value = 600;
-            gain.gain.setValueAtTime(0.2, ctx.currentTime + start);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + 0.15);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + 0.15);
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'square'; osc.frequency.value = 600;
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + start); gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + 0.15);
+            osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + 0.15);
         });
       } catch (e) {}
     };
 
-    // Hook to handle timer sounds
     const useTimerSounds = (game) => {
       const prevTimer = useRef(game?.timer);
-      
       useEffect(() => {
         if (!game) return;
-        const currentTimer = game.timer;
-        const previous = prevTimer.current;
-        
-        if (game.buzzerOpen && currentTimer <= 5 && currentTimer > 0 && currentTimer < previous) {
-          playTickSound();
-        }
-        
-        if (currentTimer === 0 && previous > 0) {
-          playTimeUpSound();
-        }
-        
+        const currentTimer = game.timer; const previous = prevTimer.current;
+        if (game.buzzerOpen && currentTimer <= 5 && currentTimer > 0 && currentTimer < previous) playTickSound();
+        if (currentTimer === 0 && previous > 0) playTimeUpSound();
         prevTimer.current = currentTimer;
       }, [game?.timer, game?.buzzerOpen]);
     };
 
-    // --- COMPONENTS ---
+    // --- SHARED UI COMPONENTS ---
     const ErrorBoundary = class extends React.Component {
       constructor(props) { super(props); this.state = { hasError: false, error: null }; }
       static getDerivedStateFromError(error) { return { hasError: true, error }; }
-      componentDidCatch(error, errorInfo) { console.error("Error:", error, errorInfo); }
       render() {
         if (this.state.hasError) return <div className="min-h-screen flex items-center justify-center p-6 text-center text-white"><div className="glass-panel p-8 rounded-3xl border border-red-500/50 max-w-lg"><h2 className="text-xl font-bold mb-4 text-red-400">Something went wrong</h2><p className="text-xs font-mono mb-4 text-left opacity-70">{this.state.error?.toString()}</p><button onClick={() => window.location.reload()} className="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-full font-bold transition">Reload</button></div></div>;
         return this.props.children;
@@ -345,7 +288,10 @@
 
     const Loading = ({ msg }) => (
       <div className="min-h-screen flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-4 p-8 glass-panel rounded-full"><RefreshCw className="animate-spin w-8 h-8 text-pink-500" /><p className="text-sm font-medium tracking-wide">{msg || 'Connecting...'}</p></div>
+        <div className="flex flex-col items-center gap-4 p-8 glass-panel rounded-full">
+          <RefreshCw className="animate-spin w-8 h-8 text-pink-500" />
+          <p className="text-sm font-medium tracking-wide">{msg || 'Connecting...'}</p>
+        </div>
       </div>
     );
 
@@ -358,7 +304,6 @@
 
       const handleAuth = async (e) => {
         e.preventDefault(); setError(''); setLoading(true);
-        // Ensure audio context is ready on first interaction
         getAudioCtx();
         try {
           if (isSignUp) await createUserWithEmailAndPassword(auth, email, password);
@@ -369,6 +314,7 @@
           let msg = "Authentication failed.";
           if(err.code === 'auth/invalid-credential') msg = "Invalid email or password.";
           else if(err.code === 'auth/weak-password') msg = "Password too short.";
+          else if(err.code === 'auth/operation-not-allowed') msg = "Auth method not enabled.";
           setError(msg);
         } finally { setLoading(false); }
       };
@@ -394,13 +340,12 @@
       <table className="w-full text-left border-collapse">
         <thead className="text-[10px] text-slate-400 uppercase tracking-wider border-b border-white/10"><tr><th className="pb-3 pl-2">Rank</th><th className="pb-3">Player</th><th className="pb-3 text-right pr-2">Score</th></tr></thead>
         <tbody className="divide-y divide-white/5">
-          {players.map((p, index) => (
+          {Object.values(players || {}).sort((a,b)=>b.score-a.score).map((p, index) => (
             <tr key={p.id} className={`${p.id === currentPlayerId ? 'bg-white/5' : ''} ${p.locked ? 'bg-red-500/10' : ''} transition-colors`}>
               <td className="py-4 pl-3 font-mono text-slate-400 w-12 text-sm">#{index + 1}</td>
               <td className="py-4">
                 <div className={`font-bold flex items-center gap-2 ${p.locked ? 'text-red-400' : (p.id === currentPlayerId ? 'text-blue-400' : 'text-white')}`}>
-                  {p.locked && <Lock size={12} />}
-                  {p.name} {p.id === currentPlayerId && '(You)'}
+                  {p.locked && <Lock size={12} />} {p.name} {p.id === currentPlayerId && '(You)'}
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">{p.team}</div>
               </td>
@@ -411,7 +356,6 @@
       </table>
     );
 
-    // --- PROJECTOR VIEW ---
     const ProjectorView = ({ gameCode, onExit }) => {
       const [game, setGame] = useState(null);
       const prevBuzzCount = useRef(0);
@@ -419,8 +363,7 @@
       useEffect(() => {
         const unsubscribe = onSnapshot(getGameDocRef(gameCode), (doc) => { 
           if (doc.exists()) {
-            const data = doc.data();
-            setGame(data);
+            const data = doc.data(); setGame(data);
             if (data.buzzes && data.buzzes.length > prevBuzzCount.current) playDingSound();
             prevBuzzCount.current = data.buzzes ? data.buzzes.length : 0;
           }
@@ -488,7 +431,7 @@
                                </div>
                             </div>
                             <div className="font-mono text-2xl text-slate-400">
-                               {i === 0 ? <span className="text-green-400 font-bold">WINNER</span> : `+${(b.timestamp - buzzes[0].timestamp)}ms`}
+                               {i === 0 ? <span className="text-green-400 font-bold">WINNER</span> : `+${b.timestamp - buzzes[0].timestamp}ms`}
                             </div>
                          </div>
                        ))}
@@ -519,147 +462,11 @@
                  </div>
               </div>
            </div>
-           
            <button onClick={onExit} className="fixed bottom-6 right-6 opacity-0 hover:opacity-100 transition text-slate-400 bg-black/50 backdrop-blur px-4 py-2 rounded-full text-sm">Exit View</button>
         </div>
       );
     };
 
-    // --- PLAYER VIEW ---
-    const PlayerView = ({ game, player, playerId, gameId }) => {
-      const [buzzed, setBuzzed] = useState(false);
-      const [feedback, setFeedback] = useState('');
-      const [showLeaderboard, setShowLeaderboard] = useState(false);
-
-      useEffect(() => {
-        const handleCheatDetection = () => {
-          if (game.focusModeEnabled && !player.locked) {
-            const gameRef = getGameDocRef(gameId);
-            updateDoc(gameRef, { [`players.${playerId}.locked`]: true });
-          }
-        };
-        document.addEventListener('visibilitychange', () => { if (document.hidden) handleCheatDetection(); });
-        window.addEventListener('blur', handleCheatDetection);
-        return () => {
-            document.removeEventListener('visibilitychange', handleCheatDetection);
-            window.removeEventListener('blur', handleCheatDetection);
-        };
-      }, [playerId, gameId, player.locked, game.focusModeEnabled]);
-
-      useEffect(() => {
-        if (game.buzzes) {
-          const myBuzz = game.buzzes.find(b => b.playerId === playerId);
-          setBuzzed(!!myBuzz);
-          if (myBuzz) {
-            const rank = game.buzzes.findIndex(b => b.playerId === playerId) + 1;
-            setFeedback(`Rank: ${rank}`);
-          } else { setFeedback(''); setBuzzed(false); }
-        }
-      }, [game.buzzes, playerId]);
-
-      const handleBuzz = async () => {
-        if (!game.buzzerOpen || buzzed || game.timer <= 0) return;
-        playBuzzerSound();
-        setBuzzed(true); setFeedback('Buzzing...');
-        try {
-          const gameRef = getGameDocRef(gameId);
-          await updateDoc(gameRef, { buzzes: arrayUnion({ playerId, playerName: player.name, team: player.team, timestamp: Date.now() }) });
-        } catch (e) { setBuzzed(false); setFeedback('Failed'); }
-      };
-
-      const sortedPlayers = useMemo(() => Object.values(game.players || {}).sort((a, b) => b.score - a.score), [game.players]);
-      const isBuzzerEnabled = game.buzzerOpen && game.timer > 0 && !buzzed;
-      useTimerSounds(game);
-
-      if (player.locked && game.focusModeEnabled) {
-        return (
-          <div className="min-h-screen bg-[#1a0505] text-white flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
-            <div className="glass-panel bg-red-900/20 border-red-500/50 p-10 rounded-3xl shadow-2xl max-w-md">
-              <ShieldAlert className="w-24 h-24 mx-auto mb-6 text-red-500 animate-pulse" />
-              <h1 className="text-4xl font-black mb-4 text-red-500">LOCKED OUT</h1>
-              <p className="text-lg mb-8 text-red-200/80 leading-relaxed">
-                Focus mode is active. You switched tabs or minimized the app.
-              </p>
-              <div className="bg-black/40 p-4 rounded-xl text-sm text-red-300 border border-red-500/20">
-                Ask the <strong>HOST</strong> to unlock you.
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="min-h-screen flex flex-col relative text-white font-sans">
-          <div className="glass-panel rounded-b-3xl p-4 shadow-2xl flex justify-between items-center z-10 shrink-0 mx-4 mt-0 border-t-0">
-            <div><h2 className="font-bold text-lg text-white">{player.name}</h2><span className="text-xs text-slate-400 uppercase tracking-widest">{player.team}</span></div>
-            <div className="text-right"><div className="text-3xl font-mono font-bold text-blue-400 drop-shadow-md">{game.timer}s</div><div className="text-[10px] text-slate-500 uppercase tracking-widest">Round {game.round}</div></div>
-          </div>
-          <div className="flex-1 flex overflow-hidden">
-            <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-y-auto">
-              {(game.currentQuestion || game.currentImage) && (
-                <div className="w-full max-w-lg mb-10 glass-panel border-indigo-500/30 p-8 rounded-3xl shadow-2xl no-select relative overflow-hidden group" onContextMenu={(e) => e.preventDefault()}>
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                  <div className="text-[10px] text-indigo-300 uppercase font-bold tracking-[0.2em] mb-6 flex items-center gap-2"><HelpCircle size={12}/> Live Question</div>
-                  {game.currentImage && (
-                    <div className="mb-6 rounded-2xl overflow-hidden border border-white/10 relative shadow-lg bg-black/50">
-                      <img src={game.currentImage} alt="Question" className="w-full h-auto object-contain max-h-64 pointer-events-none" draggable="false" />
-                      <div className="absolute inset-0 z-10"></div>
-                    </div>
-                  )}
-                  {game.currentQuestion && <div className="text-2xl font-bold leading-relaxed text-white formatted-text drop-shadow-md">{game.currentQuestion}</div>}
-                </div>
-              )}
-              
-              {/* THE BUTTON */}
-              <button onClick={handleBuzz} disabled={!isBuzzerEnabled} 
-                className={`relative w-72 h-72 rounded-full flex flex-col items-center justify-center transition-all duration-300 transform active:scale-95 shrink-0 group
-                  ${isBuzzerEnabled 
-                    ? 'shadow-[0_0_80px_rgba(244,63,94,0.4)] cursor-pointer' 
-                    : 'opacity-50 cursor-not-allowed grayscale'}
-                `}
-              >
-                {/* Button Body */}
-                <div className={`absolute inset-0 rounded-full border-4 border-white/10 ${isBuzzerEnabled ? 'bg-gradient-to-br from-rose-500 via-red-600 to-red-800' : 'bg-slate-800'}`}></div>
-                {/* Shine Effect */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 w-48 h-24 bg-gradient-to-b from-white/20 to-transparent rounded-full blur-xl"></div>
-                
-                <div className="relative z-10 flex flex-col items-center">
-                  {buzzed ? <Check className="w-24 h-24 text-white drop-shadow-lg" /> : <Zap className={`w-24 h-24 text-white drop-shadow-lg ${isBuzzerEnabled ? 'group-hover:scale-110 transition-transform' : ''}`} />}
-                  <span className="mt-2 font-black text-2xl uppercase tracking-[0.2em] text-white/90 drop-shadow-md">{buzzed ? 'LOCKED' : 'PUSH'}</span>
-                </div>
-              </button>
-              
-              <div className="h-16 mt-8 flex items-center justify-center">
-                 {feedback && <div className="glass-panel px-6 py-2 rounded-full text-yellow-400 font-bold text-xl animate-bounce shadow-lg border-yellow-500/30">{feedback}</div>}
-              </div>
-            </div>
-            
-            {/* Desktop Side Panel */}
-            <div className="hidden md:flex w-96 border-l border-white/5 bg-black/20 backdrop-blur-xl flex-col">
-               <div className="p-6 border-b border-white/5"><h3 className="font-bold text-yellow-400 flex items-center gap-2 tracking-widest text-xs uppercase"><Trophy size={16} /> Live Standings</h3></div>
-               <div className="flex-1 overflow-y-auto p-6"><LeaderboardTable players={sortedPlayers} currentPlayerId={playerId} /></div>
-               <div className="p-6 bg-black/40 border-t border-white/5"><div className="text-xs text-slate-400 text-center uppercase tracking-widest mb-1">Your Score</div><div className="text-3xl font-mono font-bold text-white text-center">{player.score}</div></div>
-            </div>
-          </div>
-          
-          {/* Mobile Footer */}
-          <div className="md:hidden glass-panel m-4 rounded-2xl p-4 flex justify-between items-center shadow-2xl z-10 shrink-0">
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-400">Score</div><div className="text-2xl font-bold text-white">{player.score}</div></div>
-            <button onClick={() => setShowLeaderboard(true)} className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95"><Trophy size={16} /> LEADERBOARD</button>
-          </div>
-          
-          {/* Mobile Modal */}
-          {showLeaderboard && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col animate-in fade-in duration-200">
-              <div className="p-6 flex justify-between items-center"><h2 className="text-xl font-bold flex items-center gap-2 text-yellow-400"><Trophy size={20} /> STANDINGS</h2><button onClick={() => setShowLeaderboard(false)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={20} /></button></div>
-              <div className="flex-1 overflow-y-auto p-6 pt-0"><LeaderboardTable players={sortedPlayers} currentPlayerId={playerId} /></div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    // --- HOST VIEW ---
     const HostView = ({ user, onLogout }) => {
       const [viewState, setViewState] = useState('list');
       const [games, setGames] = useState([]);
@@ -683,8 +490,7 @@
         if (!user) return;
         const q = getGameCollectionQuery([where('hostId', '==', user.uid)]); 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-          const myGames = [];
-          snapshot.forEach(doc => { const data = doc.data(); myGames.push({ id: doc.id, ...data }); });
+          const myGames = []; snapshot.forEach(doc => myGames.push({ id: doc.id, ...doc.data() }));
           setGames(myGames);
         });
         return () => unsubscribe();
@@ -694,8 +500,7 @@
         if (!activeGameId) return;
         const unsubscribe = onSnapshot(getGameDocRef(activeGameId), (doc) => { 
           if (doc.exists()) {
-            const data = doc.data();
-            setGameData(data);
+            const data = doc.data(); setGameData(data);
             if (data.buzzes && data.buzzes.length > prevBuzzCountHost.current) playDingSound();
             prevBuzzCountHost.current = data.buzzes ? data.buzzes.length : 0;
           }
@@ -719,8 +524,7 @@
       const createGame = async () => {
         const code = generateCode(6);
         const newGame = {
-          hostId: user.uid, code, createdAt: serverTimestamp(),
-          initialTimer: 30, timer: 30, buzzerOpen: false, round: 1, buzzes: [], players: {}, teams: [],
+          hostId: user.uid, code, createdAt: serverTimestamp(), initialTimer: 30, timer: 30, buzzerOpen: false, round: 1, buzzes: [], players: {}, teams: [],
           rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }], status: 'lobby',
           currentQuestion: '', currentImage: null, focusModeEnabled: false
         };
@@ -731,18 +535,15 @@
       const handleMainButton = async () => {
         if (!gameData) return;
         const initialTime = gameData.initialTimer || 30;
-        const isDirty = gameData.buzzerOpen || (gameData.timer !== initialTime);
-        if (isDirty) {
+        if (gameData.buzzerOpen || gameData.timer !== initialTime) {
            await updateDoc(getGameDocRef(activeGameId), { buzzerOpen: false, timer: initialTime, buzzes: [] });
         } else {
-           getAudioCtx();
-           await updateDoc(getGameDocRef(activeGameId), { buzzerOpen: true });
+           getAudioCtx(); await updateDoc(getGameDocRef(activeGameId), { buzzerOpen: true });
         }
       };
 
       const updateScore = async (pid, delta) => {
-        const p = gameData.players[pid];
-        const newScore = p.score + delta;
+        const newScore = gameData.players[pid].score + delta;
         await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}.score`]: newScore });
       };
 
@@ -754,14 +555,13 @@
         const newStatus = !gameData.focusModeEnabled;
         const updates = { focusModeEnabled: newStatus };
         if (!newStatus && gameData.players) {
-           Object.keys(gameData.players).forEach(pid => {
-             if (gameData.players[pid].locked) { updates[`players.${pid}.locked`] = false; }
-           });
+           Object.keys(gameData.players).forEach(pid => { if (gameData.players[pid].locked) updates[`players.${pid}.locked`] = false; });
         }
         await updateDoc(getGameDocRef(activeGameId), updates);
       };
 
       const resetBuzzers = async () => updateDoc(getGameDocRef(activeGameId), { buzzes: [] });
+      
       const addNewRound = async () => {
         const nextId = (gameData.rounds || []).length + 1;
         await updateDoc(getGameDocRef(activeGameId), { rounds: arrayUnion({ id: nextId, label: `Round ${nextId}`, timer: newRoundTime, qualifiers: newRoundQualifiers }) });
@@ -769,9 +569,7 @@
       
       const activateRound = async (r) => {
         const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
-        let qIds = [];
-        if (sorted.length <= r.qualifiers) { qIds = sorted.map(p => p.id); } 
-        else { const cutoffScore = sorted[r.qualifiers - 1].score; qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id); }
+        let qIds = sorted.length <= r.qualifiers ? sorted.map(p => p.id) : sorted.filter(p => p.score >= sorted[r.qualifiers - 1].score).map(p => p.id);
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
         await updateDoc(getGameDocRef(activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
@@ -787,37 +585,29 @@
         if(!newPlayerName.trim()) return;
         const pid = crypto.randomUUID(); const pCode = generateCode(4);
         const newP = { id: pid, name: newPlayerName, team: selectedTeamForPlayer || 'Unassigned', code: pCode, score: 0, active: true, locked: false };
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: newP });
-        setNewPlayerName('');
+        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: newP }); setNewPlayerName('');
       };
 
       const addTeam = async () => {
         if(!newTeamName.trim()) return;
-        await updateDoc(getGameDocRef(activeGameId), { teams: arrayUnion(newTeamName) });
-        setNewTeamName('');
+        await updateDoc(getGameDocRef(activeGameId), { teams: arrayUnion(newTeamName) }); setNewTeamName('');
       };
 
       const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (file) {
-          if (file.size > 5000000) { alert("Image is too large (Max 5MB)."); return; }
           try {
             const compressedDataUrl = await compressImage(file);
-            if (compressedDataUrl.length > 950000) { alert("Image is too complex even after compression."); return; }
             setQuestionImage(compressedDataUrl);
-          } catch (error) { console.error("Compression failed", error); alert("Failed to process image."); }
+          } catch (error) { alert("Failed to process image."); }
         }
       };
 
-      const updateQuestion = async () => {
-        await updateDoc(getGameDocRef(activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
-      };
+      const updateQuestion = async () => await updateDoc(getGameDocRef(activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
       
       const clearQuestion = async () => {
-        try {
-          setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
-          await updateDoc(getGameDocRef(activeGameId), { currentQuestion: '', currentImage: deleteField() });
-        } catch (e) { alert("Failed to clear question. Check connection."); }
+        setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
+        await updateDoc(getGameDocRef(activeGameId), { currentQuestion: '', currentImage: deleteField() });
       };
 
       if (viewState === 'list') {
@@ -833,7 +623,6 @@
                 <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition border border-white/5 hover:border-white/20 relative group">
                    <div className="absolute top-4 right-4 text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-black/40 px-2 py-1 rounded">Round {g.round}</div>
                    <h3 className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">{g.code}</h3>
-                   <div className="text-xs text-slate-400 uppercase tracking-widest mb-6">{new Date(g.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</div>
                    <div className="flex items-center gap-2 text-sm font-bold text-slate-300 bg-white/5 inline-flex px-3 py-1.5 rounded-lg"><Users className="w-4 h-4" /> {Object.keys(g.players || {}).length} Players</div>
                 </div>
               ))}
@@ -855,140 +644,150 @@
           </div>
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row p-4 gap-4">
             <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pr-1">
-              
               <button onClick={toggleFocusMode} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 border transition-all ${gameData.focusModeEnabled ? 'bg-red-600/90 border-red-400 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'glass-panel text-slate-400 border-white/5 hover:bg-white/5'}`}>
                 {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />} <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
               </button>
-
               <div className="glass-panel p-6 rounded-3xl space-y-4">
-                <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2"><HelpCircle size={16} /> Question Board</h3>
-                <div className="flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
-                  <ImageIcon size={18} className="text-slate-400"/>
-                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 transition cursor-pointer" />
-                  {questionImage && <button onClick={() => { setQuestionImage(null); fileInputRef.current.value = ""; }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>}
-                </div>
-                {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
                 <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionInput} onChange={(e) => setQuestionInput(e.target.value)} />
-                <div className="flex gap-2"><button type="button" onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button type="button" onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
+                <div className="flex gap-2"><button onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"><Eye size={14}/> Show</button><button onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
               </div>
-
-              <div className="glass-panel p-6 rounded-3xl space-y-4">
-                <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><List size={16} /> Round Management</h3>
-                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                  {(gameData.rounds || []).map((round) => {
-                    const isEditing = editingRoundId === round.id; const isActive = gameData.round === round.id;
-                    if (isEditing) return (<div key={round.id} className="bg-black/40 border border-blue-500/50 rounded-xl p-2 flex gap-2 items-center"><div className="flex-1 space-y-1"><input type="number" value={editRoundTime} onChange={(e) => setEditRoundTime(Number(e.target.value))} className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white focus:border-blue-500 outline-none" placeholder="Time"/><input type="number" value={editRoundQualifiers} onChange={(e) => setEditRoundQualifiers(Number(e.target.value))} className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white focus:border-blue-500 outline-none" placeholder="Qualifiers"/></div><div className="flex flex-col gap-1"><button onClick={saveRound} className="p-1.5 bg-green-600 rounded-lg hover:bg-green-500"><Check size={12}/></button><button onClick={() => setEditingRoundId(null)} className="p-1.5 bg-red-600 rounded-lg hover:bg-red-500"><X size={12}/></button></div></div>);
-                    return (<div key={round.id} className={`flex justify-between items-center p-3 rounded-xl border transition-all ${isActive ? 'bg-indigo-600/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}><div className="flex-1"><div className="font-bold text-sm text-white flex items-center gap-2">{round.label} {isActive && <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-full font-black tracking-wide">LIVE</span>}</div><div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">{round.timer}s • Top {round.qualifiers}</div></div><div className="flex items-center gap-2"><button onClick={() => { setEditingRoundId(round.id); setEditRoundTime(round.timer); setEditRoundQualifiers(round.qualifiers); }} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"><Edit2 size={14} /></button><button onClick={() => activateRound(round)} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg tracking-widest uppercase transition ${isActive ? 'bg-white/20 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'}`}>{isActive ? 'RESET' : 'GO'}</button></div></div>);
-                  })}
-                </div>
-                <div className="pt-4 border-t border-white/10">
-                  <div className="grid grid-cols-2 gap-3 mb-3"><input type="number" value={newRoundTime} onChange={(e) => setNewRoundTime(Number(e.target.value))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-white" placeholder="Secs"/><input type="number" value={newRoundQualifiers} onChange={(e) => setNewRoundQualifiers(Number(e.target.value))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-white" placeholder="Qualifiers"/></div><button onClick={addNewRound} className="w-full glass-btn py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white">+ Add Round</button>
-                </div>
-              </div>
-
-              <div className="glass-panel p-6 rounded-3xl flex-1 min-h-[300px] flex flex-col">
-                <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Zap className="text-yellow-400" size={16} /> Live Buzzers</h3><button onClick={resetBuzzers} className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-bold uppercase tracking-wide hover:bg-white/20 transition text-white">Clear</button></div>
-                <div className="space-y-3 flex-1 overflow-y-auto pr-2">
-                   {buzzes.length === 0 && <div className="text-center text-slate-500 text-sm italic mt-10">Waiting for players...</div>}
-                   {buzzes.map((buzz, idx) => (
-                    <div key={idx} className="bg-black/30 p-4 rounded-2xl flex justify-between items-center border border-white/5 animate-in slide-in-from-left-4 fade-in duration-300">
-                      <div className="flex items-center gap-4"><div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-black font-black w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-lg">{idx + 1}</div><div><div className="font-bold text-sm">{buzz.playerName}</div><div className="text-[10px] text-slate-400 uppercase tracking-wide">{buzz.team}</div></div></div>
-                      <div className="text-xs font-mono text-slate-500">{idx === 0 ? <span className="text-green-400 font-bold">WIN</span> : `+${(buzz.timestamp - buzzes[0].timestamp)}ms`}</div>
-                    </div>
-                  ))}
-                </div>
+              <div className="glass-panel p-6 rounded-3xl flex-1 flex flex-col overflow-y-auto">
+                <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest mb-6"><Zap className="text-yellow-400" size={16} /> Live Buzzers</h3>
+                <div className="space-y-3">{buzzes.map((buzz, idx) => (
+                  <div key={idx} className="bg-black/30 p-4 rounded-2xl flex justify-between items-center border border-white/5">
+                    <div className="flex items-center gap-4"><div className="bg-yellow-400 text-black font-black w-8 h-8 rounded-full flex items-center justify-center text-sm">{idx + 1}</div><div><div className="font-bold text-sm">{buzz.playerName}</div><div className="text-[10px] text-slate-400 uppercase">{buzz.team}</div></div></div>
+                    <div className="text-xs font-mono text-slate-500">{idx === 0 ? "WINNER" : `+${buzz.timestamp - buzzes[0].timestamp}ms`}</div>
+                  </div>
+                ))}</div>
               </div>
             </div>
-
-            <div className="flex-1 glass-panel p-6 rounded-3xl flex flex-col overflow-hidden">
-              <div className="bg-black/20 p-6 rounded-2xl mb-6 border border-white/5">
-                <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[200px]"><label className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">New Team</label><div className="flex gap-2"><input value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} placeholder="Name" className="glass-input flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600"/><button onClick={addTeam} className="bg-emerald-600 hover:bg-emerald-500 p-2 rounded-xl text-white shadow-lg shadow-emerald-500/20"><Plus size={18}/></button></div></div>
-                    <div className="flex-[1.5] min-w-[300px]"><label className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">Register Player</label><div className="flex gap-2"><input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600"/><select value={selectedTeamForPlayer} onChange={(e) => setSelectedTeamForPlayer(e.target.value)} className="glass-input rounded-xl px-3 py-2 text-sm max-w-[120px] text-slate-300"><option value="">None</option>{(gameData.teams || []).map(t => <option key={t} value={t}>{t}</option>)}</select><button onClick={addPlayer} className="bg-blue-600 hover:bg-blue-500 px-4 rounded-xl whitespace-nowrap flex items-center gap-2 text-xs font-bold uppercase tracking-wide shadow-lg shadow-blue-500/20"><UserPlus size={16}/> Gen Code</button></div></div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3><div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
-              <div className="flex-1 overflow-y-auto rounded-2xl border border-white/5 bg-black/20">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-white/5 text-slate-400 text-[10px] uppercase tracking-widest sticky top-0 backdrop-blur-md z-10"><tr><th className="p-4 font-medium">Player / Code</th><th className="p-4 font-medium">Team</th><th className="p-4 text-center font-medium">Status</th><th className="p-4 text-right font-medium">Score</th><th className="p-4 text-right font-medium">Action</th></tr></thead>
-                  <tbody className="divide-y divide-white/5">
-                    {playerList.sort((a,b) => b.score - a.score).map(player => (
-                      <tr key={player.id} className={`hover:bg-white/5 transition group ${player.locked ? 'bg-red-500/10' : ''}`}>
-                        <td className="p-4"><div className="font-bold text-sm text-white flex items-center gap-2">{player.locked && <Lock size={12} className="text-red-400"/>}{player.name}</div><div className="text-[10px] font-mono text-yellow-500 bg-white/5 inline-block px-1.5 rounded mt-1 select-all tracking-wide">{player.code}</div></td>
-                        <td className="p-4 text-xs text-slate-400 font-medium">{player.team}</td>
-                        <td className="p-4 text-center">
-                          <div className={`w-2 h-2 rounded-full mx-auto ${player.active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500 opacity-30'}`} />
-                          {player.locked && <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">LOCKED</div>}
-                        </td>
-                        <td className="p-4 text-right font-mono text-lg font-bold">{player.score}</td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2 mb-2"><button onClick={() => updateScore(player.id, -0.5)} className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Minus size={12} /></button><button onClick={() => updateScore(player.id, 0.5)} className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Plus size={12} /></button></div>
-                          {player.locked && <button onClick={() => toggleLock(player.id, player.locked)} className="w-full bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 text-[9px] font-bold py-1 rounded border border-red-500/30 flex items-center justify-center gap-1 transition uppercase tracking-wider"><Unlock size={10}/> Unlock</button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="flex-1 glass-panel p-6 rounded-3xl overflow-y-auto">
+               <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-slate-300 text-xs uppercase tracking-widest">Leaderboard</h3><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 px-6 text-xs w-48 text-white"/></div>
+               <table className="w-full text-left border-collapse">
+                 <thead className="text-slate-400 text-[10px] uppercase tracking-widest border-b border-white/10"><tr><th className="p-4">Player</th><th className="p-4">Team</th><th className="p-4 text-right">Score</th><th className="p-4 text-right">Action</th></tr></thead>
+                 <tbody className="divide-y divide-white/5">{playerList.sort((a,b)=>b.score-a.score).map(p => (
+                   <tr key={p.id} className={`hover:bg-white/5 transition ${p.locked ? 'bg-red-500/10' : ''}`}><td className="p-4"><div className="font-bold text-sm">{p.name}</div><div className="text-[10px] font-mono text-yellow-500">{p.code}</div></td><td className="p-4 text-xs text-slate-500">{p.team}</td><td className="p-4 text-right font-mono text-lg">{p.score}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={()=>updateScore(p.id, -1)} className="p-1.5 hover:bg-white/10 rounded"><Minus size={14}/></button><button onClick={()=>updateScore(p.id, 1)} className="p-1.5 hover:bg-white/10 rounded"><Plus size={14}/></button></td></tr>
+                 ))}</tbody>
+               </table>
             </div>
           </div>
         </div>
       );
     };
 
-    // --- MAIN WRAPPER ---
+    const PlayerView = ({ game, player, playerId, gameId }) => {
+      const [buzzed, setBuzzed] = useState(false);
+      const [feedback, setFeedback] = useState('');
+
+      useEffect(() => {
+        const detect = () => { if (document.hidden && game.focusModeEnabled && !player.locked) updateDoc(getGameDocRef(gameId), { [`players.${playerId}.locked`]: true }); };
+        document.addEventListener('visibilitychange', detect); return () => document.removeEventListener('visibilitychange', detect);
+      }, [game.focusModeEnabled, player.locked]);
+
+      useEffect(() => {
+        const myBuzz = (game.buzzes || []).find(b => b.playerId === playerId);
+        setBuzzed(!!myBuzz);
+        if (myBuzz) {
+          const rank = game.buzzes.findIndex(b => b.playerId === playerId) + 1;
+          setFeedback(`Rank: ${rank}`);
+        } else { setFeedback(''); }
+      }, [game.buzzes]);
+
+      const handleBuzz = async () => {
+        if (!game.buzzerOpen || buzzed || game.timer <= 0) return;
+        playBuzzerSound();
+        try { await updateDoc(getGameDocRef(gameId), { buzzes: arrayUnion({ playerId, playerName: player.name, team: player.team, timestamp: Date.now() }) }); } catch (e) {}
+      };
+
+      if (player.locked && game.focusModeEnabled) {
+        return (
+          <div className="min-h-screen bg-[#1a0505] text-white flex items-center justify-center p-6 text-center">
+            <div className="glass-panel p-10 rounded-3xl max-w-md"><ShieldAlert className="w-20 h-20 mx-auto mb-6 text-red-500" /><h1 className="text-3xl font-black mb-4">LOCKED</h1><p className="text-red-200/60">Ask the host to unlock you.</p></div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col text-white font-sans">
+          <div className="glass-panel rounded-b-3xl m-4 mt-0 p-6 flex justify-between items-center shadow-xl border-t-0">
+            <div><h2 className="font-bold text-xl">{player.name}</h2><span className="text-xs text-slate-500 uppercase tracking-widest">{player.team}</span></div>
+            <div className="text-3xl font-mono font-bold text-blue-400">{game.timer}s</div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-6">
+            {(game.currentQuestion || game.currentImage) && (
+              <div className="w-full max-w-lg mb-10 glass-panel p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
+                {game.currentImage && <img src={game.currentImage} className="w-full h-auto mb-4 rounded-xl shadow-lg border border-white/10" />}
+                {game.currentQuestion && <div className="text-2xl font-bold text-center">{game.currentQuestion}</div>}
+              </div>
+            )}
+            <button onClick={handleBuzz} disabled={!game.buzzerOpen || buzzed || game.timer <= 0} 
+              className={`relative w-64 h-64 rounded-full transition-all duration-300 transform active:scale-90 ${game.buzzerOpen && !buzzed ? 'bg-gradient-to-br from-rose-500 to-red-800 shadow-[0_0_50px_rgba(244,63,94,0.4)]' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
+            >
+              <div className="relative z-10 flex flex-col items-center">
+                {buzzed ? <Check className="w-20 h-20" /> : <Zap className="w-20 h-20" />}
+                <span className="mt-2 font-black text-xl tracking-widest uppercase">{buzzed ? 'LOCKED' : 'BUZZ'}</span>
+              </div>
+            </button>
+            <div className="h-10 mt-8 font-bold text-yellow-400 text-2xl">{feedback}</div>
+          </div>
+        </div>
+      );
+    };
+
     const GameWrapper = ({ gameCode, playerCode, onExit }) => {
       const [game, setGame] = useState(null); const [player, setPlayer] = useState(null);
       useEffect(() => {
-        const unsubscribe = onSnapshot(doc(db, GAMES_COLLECTION, gameCode), (docSnap) => {
-          if (docSnap.exists()) { const gData = docSnap.data(); setGame(gData); const pData = Object.values(gData.players || {}).find(p => p.code === playerCode); if (pData) setPlayer(pData); else onExit(); } else onExit();
-        });
+        const unsubscribe = onSnapshot(getGameDocRef(gameCode), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data(); setGame(data);
+            const p = Object.values(data.players || {}).find(p => p.code === playerCode);
+            if (p) setPlayer(p); else onExit();
+          } else onExit();
+        }, () => onExit());
         return () => unsubscribe();
       }, [gameCode, playerCode]);
-      if (!game || !player) return <Loading msg="Syncing Game Data..." />;
-      if (!player.active) return (<div className="min-h-screen flex items-center justify-center p-6 text-center text-white"><div><Lock className="w-16 h-16 mx-auto mb-4 text-red-500" /><h2 className="text-2xl font-bold mb-2">Eliminated</h2><p className="text-slate-400 mb-6">You did not qualify for Round {game.round}.</p><div className="bg-slate-800 p-4 rounded mb-4"><div className="text-sm text-slate-500">Final Score</div><div className="text-3xl font-mono">{player.score}</div></div><button onClick={onExit} className="text-blue-400 hover:underline">Return to Home</button></div></div>);
+      if (!game || !player) return <Loading msg="Syncing..." />;
       return <PlayerView game={game} player={player} playerId={player.id} gameId={gameCode} />;
     };
 
-    const BuzzerApp = () => {
+    function BuzzerApp() {
       const [user, setUser] = useState(null); const [mode, setMode] = useState(null); const [loading, setLoading] = useState(true);
       const [gameCode, setGameCode] = useState(''); const [playerCode, setPlayerCode] = useState(''); const [playerError, setPlayerError] = useState('');
 
       useEffect(() => {
-        let authChecked = false;
-        const unsubscribe = onAuthStateChanged(auth, (u) => {
-          authChecked = true; setUser(u); setLoading(false);
-          const loader = document.getElementById('loading-screen'); if(loader) loader.style.display = 'none';
-        });
-        setTimeout(() => {
-          if (!authChecked) { console.warn("Auth check timed out."); setLoading(false); const loader = document.getElementById('loading-screen'); if(loader) loader.style.display = 'none'; }
-        }, 2500);
-        signInAnonymously(auth).catch(e => console.warn("Silent login failed:", e));
-        return () => unsubscribe();
+        let isMounted = true;
+        const init = async () => {
+          try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+          } catch(e) {
+            console.warn("Auth Error:", e.code, e.message);
+            if (e.code === 'auth/operation-not-allowed') setPlayerError("Auth error: Operation not allowed.");
+          } finally {
+            if (isMounted) setLoading(false);
+            const loader = document.getElementById('loading-screen'); if(loader) loader.style.display = 'none';
+          }
+        };
+        init();
+        const unsubscribe = onAuthStateChanged(auth, u => { if(isMounted) setUser(u); });
+        return () => { isMounted = false; unsubscribe(); };
       }, []);
 
-      const handlePlayerJoin = async () => {
-        setPlayerError('');
-        if (!gameCode || !playerCode) { setPlayerError('Please enter both codes.'); return; }
-        if (!user) await signInAnonymously(auth).catch(e => console.error(e));
+      const joinGame = async (type) => {
+        setPlayerError(''); if (!gameCode) return setPlayerError('Room code required.');
+        if (type === 'player' && !playerCode) return setPlayerError('Passcode required.');
         try {
-          const gCode = gameCode.trim().toUpperCase(); const pCode = playerCode.trim().toUpperCase();
-          const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
-          let valid = false;
-          snap.forEach(d => { if(d.id === gCode) { const p = Object.values(d.data().players || {}).find(pl => pl.code === pCode); if(p) valid = true; }});
-          if(valid) setMode('player_active'); else setPlayerError('Invalid Game Code or Player Code');
-        } catch (e) { setPlayerError('Connection error.'); }
-      };
-
-      const handleProjectorJoin = async () => {
-        setPlayerError('');
-        if (!gameCode) { setPlayerError('Please enter game code.'); return; }
-        try {
-          const gCode = gameCode.trim().toUpperCase();
-          const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
-          if(!snap.empty) setMode('projector'); else setPlayerError('Game room not found.');
-        } catch (e) { console.error(e); setPlayerError('Connection error.'); }
+          const snap = await getDocs(getGameCollectionQuery([where('code', '==', gameCode.toUpperCase())]));
+          if (snap.empty) return setPlayerError('Game not found.');
+          if (type === 'projector') return setMode('projector');
+          const data = snap.docs[0].data();
+          const p = Object.values(data.players || {}).find(pl => pl.code === playerCode.toUpperCase());
+          if (p) setMode('player_active'); else setPlayerError('Invalid Passcode.');
+        } catch (e) { setPlayerError('Connection failed.'); }
       };
 
       if (loading) return null;
@@ -998,42 +797,40 @@
       if (mode === 'projector') return <ErrorBoundary><ProjectorView gameCode={gameCode} onExit={() => setMode(null)} /></ErrorBoundary>;
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-6 font-sans">
-          <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
-            <div className="text-center mb-10">
-              <div className="flex justify-center mb-6"><div className="relative"><div className="absolute inset-0 bg-red-500 blur-2xl opacity-40"></div><div className="relative bg-gradient-to-br from-red-500 to-pink-600 p-6 rounded-[2rem] shadow-2xl shadow-red-500/20"><Zap className="w-12 h-12 text-white" /></div></div></div>
-              <h1 className="text-5xl font-black tracking-tighter text-white mb-2 drop-shadow-lg">BuzzerBeater</h1><p className="text-slate-400 text-lg font-medium tracking-wide">The Ultimate Game Show Companion</p>
-            </div>
-            <div className="glass-panel p-10 rounded-[2.5rem] relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
-              <div className="flex mb-8 bg-black/20 p-1.5 rounded-2xl relative">
-                <button className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative z-10 ${mode === 'join' || !mode ? 'bg-white text-black shadow-lg' : 'text-slate-400 hover:text-white'}`} onClick={() => { setMode(null); setPlayerError(''); }}>Play</button>
-                <button className="flex-1 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-white transition relative z-10" onClick={() => user && !user.isAnonymous ? setMode('host') : setMode('auth')}>Host</button>
-                <button className="flex-1 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-white transition relative z-10" onClick={() => { setMode('projector_entry'); setPlayerError(''); }}>Projector</button>
+        <div className="min-h-screen flex items-center justify-center p-6 text-white font-sans">
+          <div className="max-w-md w-full animate-in fade-in zoom-in duration-500 text-center">
+            <div className="relative mb-10 inline-block"><div className="absolute inset-0 bg-red-500 blur-2xl opacity-40 animate-pulse"></div><div className="relative bg-gradient-to-br from-red-500 to-pink-600 p-6 rounded-[2rem] shadow-2xl"><Zap size={48} className="text-white" /></div></div>
+            <h1 className="text-5xl font-black mb-10 tracking-tight">BuzzerBeater</h1>
+            <div className="glass-panel p-10 rounded-[2.5rem] space-y-6 text-left relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-pink-500"></div>
+              <div className="flex gap-2 p-1 bg-black/20 rounded-xl relative z-10">
+                {['play', 'host', 'projector'].map(m => (
+                  <button key={m} onClick={() => { setMode(m === 'play' ? null : (m === 'host' ? 'auth' : 'projector_entry')); setPlayerError(''); }} 
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition uppercase ${((m==='play' && !mode) || (m==='host' && mode==='auth') || (m==='projector' && mode==='projector_entry')) ? 'bg-white text-black' : 'text-slate-400 hover:text-white'}`}
+                  >{m}</button>
+                ))}
               </div>
-
-              {mode === 'projector_entry' ? (
-                 <div className="space-y-6">
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Room Code</label><input value={gameCode} onChange={(e) => setGameCode(e.target.value.toUpperCase())} placeholder="A1B2" className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono tracking-[0.3em] text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-purple-500"/></div>
-                    {playerError && <div className="text-red-300 bg-red-500/10 border border-red-500/20 text-sm p-4 rounded-xl text-center font-medium">{playerError}</div>}
-                    <button onClick={handleProjectorJoin} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 rounded-2xl transition shadow-lg shadow-purple-500/30 flex items-center justify-center gap-3"><Projector size={20} /> LAUNCH PROJECTOR</button>
-                 </div>
-              ) : (
-                 <div className="space-y-6">
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Room Code</label><input value={gameCode} onChange={(e) => setGameCode(e.target.value.toUpperCase())} placeholder="X7Y2" className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono tracking-[0.3em] text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500"/></div>
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Your Passcode</label><input value={playerCode} onChange={(e) => setPlayerCode(e.target.value.toUpperCase())} placeholder="A1B2" className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono tracking-[0.3em] text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500"/></div>
-                    {playerError && <div className="text-red-300 bg-red-500/10 border border-red-500/20 text-sm p-4 rounded-xl text-center font-medium">{playerError}</div>}
-                    <button onClick={handlePlayerJoin} className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-4 rounded-2xl transition shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 text-lg mt-2">ENTER GAME <ChevronRight size={20} /></button>
-                 </div>
-              )}
+              <div className="space-y-4 relative z-10">
+                <div><label className="text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-2 block">Room Code</label><input value={gameCode} onChange={e=>setGameCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono text-white outline-none" placeholder="X7Y2"/></div>
+                {(mode !== 'projector_entry') && (
+                  <div><label className="text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-2 block">Passcode</label><input value={playerCode} onChange={e=>setPlayerCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono text-white outline-none" placeholder="A1B2"/></div>
+                )}
+                {playerError && <div className="text-red-400 text-xs bg-red-500/10 p-4 rounded-xl border border-red-500/20 leading-relaxed">{playerError}</div>}
+                <button onClick={() => joinGame(mode === 'projector_entry' ? 'projector' : 'player')} className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black tracking-widest shadow-xl transition active:scale-95 uppercase">{mode === 'projector_entry' ? 'Launch Projector' : 'Enter Game'}</button>
+              </div>
             </div>
           </div>
         </div>
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<BuzzerApp />);
+    // --- BOOTSTRAP ---
+    try {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(ErrorBoundary, null, React.createElement(BuzzerApp)));
+    } catch (e) {
+      document.body.innerHTML = `<div style="color:white;text-align:center;padding:50px;font-family:sans-serif;">Initialization Failure: ${e.message}</div>`;
+    }
   </script>
 </body>
 </html>
