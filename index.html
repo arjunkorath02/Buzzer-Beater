@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BuzzerBeater | Tournament Edition</title>
+  <title>BuzzerBeater | Tournament Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-    :root { --glass: rgba(20, 20, 25, 0.7); --border: rgba(255, 255, 255, 0.1); }
-    body { margin: 0; font-family: 'Inter', sans-serif; background: #000; color: #fff; background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%); min-height: 100vh; }
-    .glass { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--border); }
-    .glass-input { background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: white; outline: none; }
+    :root { --glass: rgba(15, 15, 20, 0.85); --border: rgba(255, 255, 255, 0.1); }
+    body { margin: 0; font-family: 'Inter', sans-serif; background: #000; color: #fff; background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%); min-height: 100vh; overflow-x: hidden; }
+    .glass { background: var(--glass); backdrop-filter: blur(25px); border: 1px solid var(--border); }
+    .glass-input { background: rgba(0,0,0,0.5); border: 1px solid var(--border); color: white; outline: none; transition: all 0.2s; }
+    .glass-input:focus { border-color: rgba(59, 130, 246, 0.5); }
     .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
@@ -26,7 +27,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, collection, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { Trophy, Zap, Plus, Minus, RefreshCw, ChevronRight, UserPlus, Trash2, LogOut, CheckCircle2, List, Settings, Play } from 'https://esm.sh/lucide-react@0.294.0';
+    import { Trophy, Zap, Plus, Minus, ChevronRight, UserPlus, Trash2, LogOut, List, Settings, Play, Edit2, Check, X } from 'https://esm.sh/lucide-react@0.294.0';
 
     const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
@@ -44,31 +45,38 @@
     const getRef = (code) => doc(db, 'gameRooms', code);
     const genCode = (n) => Array.from({length:n}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'.charAt(Math.floor(Math.random()*32))).join('');
 
+    // --- AUDIO ENGINE ---
     let audioCtx = null;
-    const playDing = () => {
+    const playSound = (freq, duration, type = 'sine', vol = 0.1) => {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
       } catch(e){}
     };
 
     // --- HOST DASHBOARD ---
     const HostDashboard = ({ user }) => {
-      const [view, setView] = useState('list'); // list, lobby, settings
+      const [view, setView] = useState('list');
       const [games, setGames] = useState([]);
       const [activeId, setActiveId] = useState(null);
       const [game, setGame] = useState(null);
       const [pName, setPName] = useState('');
       
-      // Round Preset States
       const [rTime, setRTime] = useState(30);
       const [rQual, setRQual] = useState(10);
+      const [editRoundId, setEditRoundId] = useState(null);
+
       const prevB = useRef(0);
+      const prevT = useRef(30);
 
       useEffect(() => {
         const q = query(collection(db, 'gameRooms'), where('hostId', '==', user.uid));
@@ -83,8 +91,11 @@
         return onSnapshot(getRef(activeId), (d) => {
           if (d.exists()) {
             const data = d.data();
-            if ((data.buzzes?.length || 0) > prevB.current) playDing();
+            if ((data.buzzes?.length || 0) > prevB.current) playSound(880, 0.4, 'sine', 0.2);
+            if (data.buzzerOpen && data.timer <= 5 && data.timer > 0 && data.timer !== prevT.current) playSound(440, 0.1, 'triangle', 0.1);
+            if (data.timer === 0 && prevT.current > 0) playSound(220, 0.8, 'square', 0.15);
             prevB.current = data.buzzes?.length || 0;
+            prevT.current = data.timer;
             setGame(data);
           }
         });
@@ -101,48 +112,32 @@
         return () => clearInterval(timer);
       }, [game?.buzzerOpen, game?.timer, activeId]);
 
-      const addRound = async () => {
-        const rounds = game.rounds || [];
-        const newRound = { id: rounds.length + 1, time: rTime, qualifiers: rQual };
-        await updateDoc(getRef(activeId), { rounds: arrayUnion(newRound) });
+      const deleteRound = async (id) => {
+        const updatedRounds = game.rounds.filter(r => r.id !== id);
+        await updateDoc(getRef(activeId), { rounds: updatedRounds });
       };
 
-      const startRound = async (round) => {
-        const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
-        const updates = {};
-        players.forEach((p, i) => {
-          // If it's Round 1, everyone is active. If Round > 1, check rank vs previous qualifiers.
-          const qualified = round.id === 1 ? true : (i < round.qualifiers);
-          updates[`players.${p.id}.isActive`] = qualified;
-        });
-        await updateDoc(getRef(activeId), { 
-          ...updates, 
-          currentRound: round.id, 
-          timer: round.time, 
-          initialTimer: round.time, 
-          buzzerOpen: false, 
-          buzzes: [] 
-        });
+      const saveEditRound = async (id) => {
+        const updatedRounds = game.rounds.map(r => r.id === id ? { ...r, time: parseInt(rTime), qualifiers: parseInt(rQual) } : r);
+        await updateDoc(getRef(activeId), { rounds: updatedRounds });
+        setEditRoundId(null);
       };
 
       if (view === 'list') return (
         <div className="p-10 max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-10">
-            <h1 className="text-3xl font-black">Host Panel</h1>
-            <button onClick={() => signOut(auth)} className="text-xs font-bold uppercase text-slate-500 hover:text-white transition">Sign Out</button>
-          </div>
+          <div className="flex justify-between items-center mb-10"><h1 className="text-3xl font-black italic">BuzzerBeater Host</h1><button onClick={() => signOut(auth)} className="text-xs font-bold text-slate-500 hover:text-white uppercase">Logout</button></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onClick={async () => {
               const c = genCode(6);
               await setDoc(getRef(c), { hostId: user.uid, code: c, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, rounds: [], currentRound: 0, createdAt: serverTimestamp() });
               setActiveId(c); setView('lobby');
-            }} className="glass p-12 rounded-3xl border-dashed border-2 flex flex-col items-center cursor-pointer hover:bg-white/5 transition">
+            }} className="glass p-12 rounded-[2.5rem] border-dashed border-2 flex flex-col items-center cursor-pointer hover:bg-white/5 transition">
               <Plus size={48} className="text-blue-500 mb-2"/> <span className="font-bold">New Tournament</span>
             </div>
             {games.map(g => (
-              <div key={g.id} onClick={() => { setActiveId(g.id); setView('lobby'); }} className="glass p-8 rounded-3xl cursor-pointer hover:bg-white/5 border border-white/5">
+              <div key={g.id} onClick={() => { setActiveId(g.id); setView('lobby'); }} className="glass p-8 rounded-[2rem] cursor-pointer hover:bg-white/5 transition border-white/5">
                 <div className="text-4xl font-mono font-bold text-blue-400">{g.code}</div>
-                <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest">Round {g.currentRound || 0} • {Object.keys(g.players || {}).length} Players</div>
+                <div className="text-[10px] text-slate-500 mt-2 uppercase">Round {g.currentRound} • {Object.keys(g.players || {}).length} Players</div>
               </div>
             ))}
           </div>
@@ -156,9 +151,16 @@
               <button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button>
               <div className="font-mono font-bold text-yellow-500 text-2xl">{game?.code}</div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-3xl font-mono font-bold">{game?.timer}s</div>
-              <button onClick={() => updateDoc(getRef(activeId), { buzzerOpen: !game.buzzerOpen, buzzes: game.buzzerOpen ? game.buzzes : [], timer: game.timer === 0 ? game.initialTimer : game.timer })} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs ${game?.timer === 0 ? 'bg-blue-600' : (game?.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600')}`}>
+            <div className="flex items-center gap-6">
+              <div className={`text-4xl font-mono font-bold ${game?.timer <= 5 ? 'text-red-500' : 'text-white'}`}>{game?.timer}s</div>
+              <button onClick={() => {
+                const isReset = game.timer === 0;
+                updateDoc(getRef(activeId), { 
+                  buzzerOpen: isReset ? false : !game.buzzerOpen, 
+                  buzzes: (isReset || !game.buzzerOpen) ? [] : game.buzzes, 
+                  timer: isReset ? game.initialTimer : game.timer 
+                });
+              }} className={`px-10 py-3 rounded-2xl font-black uppercase text-xs tracking-widest transition ${game?.timer === 0 ? 'bg-blue-600' : (game?.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600')}`}>
                 {game?.timer === 0 ? 'Reset' : (game?.buzzerOpen ? 'Stop' : 'Start')}
               </button>
             </div>
@@ -166,55 +168,73 @@
 
           <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="space-y-6">
-              {/* Round Config */}
               <div className="glass p-6 rounded-3xl">
-                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2"><Settings size={14}/> Round Setup</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs"><span>Timer (sec)</span><input type="number" value={rTime} onChange={e=>setRTime(e.target.value)} className="w-16 bg-white/5 text-right px-2 rounded" /></div>
-                  <div className="flex justify-between text-xs"><span>Qualifiers</span><input type="number" value={rQual} onChange={e=>setRQual(e.target.value)} className="w-16 bg-white/5 text-right px-2 rounded" /></div>
-                  <button onClick={addRound} className="w-full bg-white/10 py-2 rounded-lg text-xs font-bold hover:bg-white/20 transition">Add Round Preset</button>
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest flex items-center gap-2"><Settings size={14}/> Round Presets</h3>
+                <div className="space-y-3 p-3 bg-black/20 rounded-2xl mb-4">
+                  <div className="flex justify-between text-xs"><span>Seconds</span><input type="number" value={rTime} onChange={e=>setRTime(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
+                  <div className="flex justify-between text-xs"><span>Qualifiers</span><input type="number" value={rQual} onChange={e=>setRQual(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
+                  {editRoundId ? (
+                    <button onClick={() => saveEditRound(editRoundId)} className="w-full bg-blue-600 py-2 rounded-xl text-[10px] font-bold">Save Changes</button>
+                  ) : (
+                    <button onClick={async () => {
+                      const newR = { id: Date.now(), time: parseInt(rTime), qualifiers: parseInt(rQual) };
+                      await updateDoc(getRef(activeId), { rounds: arrayUnion(newR) });
+                    }} className="w-full bg-white/10 py-2 rounded-xl text-[10px] font-bold">Add Preset</button>
+                  )}
                 </div>
-                <div className="mt-6 space-y-2">
+                <div className="space-y-2">
                    {(game?.rounds || []).map(r => (
-                     <div key={r.id} className={`p-3 rounded-xl border flex justify-between items-center ${game.currentRound === r.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/5'}`}>
-                       <span className="text-xs font-bold">R{r.id}: {r.time}s • Top {r.qualifiers}</span>
-                       <button onClick={() => startRound(r)} className="p-2 bg-blue-600 rounded-lg hover:bg-blue-500"><Play size={12}/></button>
+                     <div key={r.id} className={`p-4 rounded-2xl border flex flex-col gap-3 ${game.currentRound === r.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 bg-white/10'}`}>
+                       <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold">Time: {r.time}s • Top {r.qualifiers}</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setEditRoundId(r.id); setRTime(r.time); setRQual(r.qualifiers); }} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><Edit2 size={12}/></button>
+                            <button onClick={() => deleteRound(r.id)} className="p-1.5 hover:bg-red-500/20 rounded text-red-500"><Trash2 size={12}/></button>
+                          </div>
+                       </div>
+                       <button onClick={async () => {
+                         const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
+                         const updates = {};
+                         players.forEach((p, i) => {
+                           updates[`players.${p.id}.isActive`] = (game.rounds.indexOf(r) === 0) ? true : (i < r.qualifiers);
+                         });
+                         await updateDoc(getRef(activeId), { ...updates, currentRound: game.rounds.indexOf(r) + 1, timer: r.time, initialTimer: r.time, buzzerOpen: false, buzzes: [] });
+                       }} className="w-full bg-blue-600/40 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition">Activate Round</button>
                      </div>
                    ))}
                 </div>
               </div>
-              {/* Add Player */}
-              <div className="glass p-6 rounded-3xl">
-                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Register Player</h3>
-                <div className="flex gap-2">
-                  <input value={pName} onChange={e => setPName(e.target.value)} placeholder="Name" className="glass-input flex-1 px-4 py-3 rounded-xl text-sm" />
-                  <button onClick={async () => {
-                    const pid = crypto.randomUUID();
-                    await updateDoc(getRef(activeId), { [`players.${pid}`]: { id: pid, name: pName, code: genCode(4), score: 0, isActive: true } });
-                    setPName('');
-                  }} className="bg-blue-600 p-3 rounded-xl"><UserPlus/></button>
-                </div>
-              </div>
             </div>
 
-            <div className="lg:col-span-2 glass rounded-3xl overflow-hidden flex flex-col h-[600px]">
-               <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5"><h3 className="text-xs font-bold text-slate-500 uppercase">Leaderboard (Round {game?.currentRound || 0})</h3></div>
+            <div className="lg:col-span-2 glass rounded-[2.5rem] overflow-hidden flex flex-col h-[650px]">
+               <div className="p-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                 <h3 className="text-xs font-bold text-slate-500 uppercase">Leaderboard</h3>
+                 <div className="flex gap-2">
+                    <input value={pName} onChange={e => setPName(e.target.value)} placeholder="Player Name" className="glass-input px-4 py-1 rounded-full text-xs" />
+                    <button onClick={async () => {
+                      if (!pName.trim()) return;
+                      const pid = crypto.randomUUID();
+                      await updateDoc(getRef(activeId), { [`players.${pid}`]: { id: pid, name: pName, code: genCode(4), score: 0, isActive: true } });
+                      setPName('');
+                    }} className="bg-blue-600 px-4 py-1 rounded-full text-[10px] font-bold uppercase">Add</button>
+                 </div>
+               </div>
                <div className="overflow-y-auto flex-1">
                  <table className="w-full text-left">
-                   <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5 sticky top-0 bg-[#141419]">
-                     <tr><th className="p-4">Rank</th><th className="p-4">Name</th><th className="p-4 text-right">Score</th><th className="p-4">Status</th><th className="p-4"></th></tr>
+                   <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5 sticky top-0 bg-[#0c0c10]">
+                     <tr><th className="p-5">Rank</th><th className="p-5">Name</th><th className="p-5 text-right">Score</th><th className="p-5">Status</th><th className="p-5"></th></tr>
                    </thead>
                    <tbody>
                      {Object.values(game?.players || {}).sort((a,b)=>b.score-a.score).map((p, idx) => (
-                       <tr key={p.id} className={`border-b border-white/5 hover:bg-white/5 transition ${!p.isActive ? 'opacity-30 grayscale' : ''}`}>
-                         <td className="p-4 font-mono text-xs text-slate-500">#{idx + 1}</td>
-                         <td className="p-4 font-bold">{p.name} <span className="block text-[10px] text-blue-400 font-mono">{p.code}</span></td>
-                         <td className="p-4 text-right font-mono text-xl">{p.score}</td>
-                         <td className="p-4"><span className={`text-[9px] px-2 py-1 rounded-full font-black ${p.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{p.isActive ? 'QUALIFIED' : 'ELIMINATED'}</span></td>
-                         <td className="p-4 flex justify-end gap-2">
-                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score + 5 })} className="p-2 glass rounded text-emerald-400"><Plus size={14}/></button>
-                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score - 5 })} className="p-2 glass rounded text-rose-400"><Minus size={14}/></button>
-                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-600 hover:text-red-500"><Trash2 size={14}/></button>
+                       <tr key={p.id} className={`border-b border-white/5 transition ${!p.isActive ? 'opacity-20 grayscale' : 'hover:bg-white/5'}`}>
+                         <td className="p-5 font-mono text-xs text-slate-500">#{idx + 1}</td>
+                         <td className="p-5 font-bold">{p.name} <span className="block text-[10px] text-yellow-500 font-mono">{p.code}</span></td>
+                         <td className="p-5 text-right font-mono text-2xl font-bold">{p.score}</td>
+                         <td className="p-5"><span className={`text-[8px] px-2 py-1 rounded-full font-black ${p.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{p.isActive ? 'QUALIFIED' : 'ELIMINATED'}</span></td>
+                         <td className="p-5 flex justify-end gap-2">
+                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score + 5 })} className="p-2 glass rounded-lg text-emerald-400"><Plus size={16}/></button>
+                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}.score`]: p.score - 5 })} className="p-2 glass rounded-lg text-rose-400"><Minus size={16}/></button>
+                            <button onClick={() => updateDoc(getRef(activeId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-600 hover:text-red-500"><Trash2 size={16}/></button>
                          </td>
                        </tr>
                      ))}
@@ -230,51 +250,63 @@
     // --- PLAYER VIEW ---
     const PlayerView = ({ game, player, code }) => {
       const [showLB, setShowLB] = useState(false);
-      const buzzes = game?.buzzes || [];
-      const isMyB = buzzes.find(b => b.playerId === player?.id);
-      const myRank = buzzes.findIndex(b => b.playerId === player?.id) + 1;
+      
+      // CRITICAL FIX: Ensure game and player exist before checking sub-properties
+      if (!game || !player) return (
+        <div className="min-h-screen flex items-center justify-center p-8 bg-black">
+          <div className="flex flex-col items-center gap-4">
+            <div className="spinner"></div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Connecting to Room...</p>
+          </div>
+        </div>
+      );
+
+      const isMyB = (game.buzzes || []).find(b => b.playerId === player.id);
+      const myRank = (game.buzzes || []).findIndex(b => b.playerId === player.id) + 1;
 
       if (!player.isActive) return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
-          <div className="glass p-10 rounded-[3rem] border-red-500/50">
+        <div className="min-h-screen flex items-center justify-center p-8 text-center bg-[#0a0000]">
+          <div className="glass p-12 rounded-[3rem] border-red-500/30">
             <Trophy size={64} className="text-red-500 mx-auto mb-6 opacity-20" />
-            <h2 className="text-3xl font-black mb-2">Eliminated</h2>
-            <p className="text-slate-500 text-sm">You did not qualify for Round {game.currentRound}.</p>
+            <h2 className="text-4xl font-black mb-2 text-red-500 uppercase tracking-tighter">Eliminated</h2>
+            <p className="text-slate-400 text-sm">Better luck next time!</p>
           </div>
         </div>
       );
 
       return (
         <div className="min-h-screen flex flex-col p-6 items-center justify-center">
-          <div className="glass w-full max-w-sm p-4 rounded-2xl flex justify-between items-center absolute top-6">
+          <div className="glass w-full max-w-sm p-5 rounded-3xl flex justify-between items-center absolute top-6 z-30">
             <div><div className="font-bold">{player.name}</div><div className="text-[10px] text-slate-500 uppercase font-black">Score: {player.score}</div></div>
-            <div className="text-3xl font-mono font-bold text-blue-400">{game.timer}s</div>
-            <button onClick={() => setShowLB(!showLB)} className="p-2 hover:bg-white/10 rounded-lg"><List size={20}/></button>
+            <div className={`text-4xl font-mono font-bold ${game.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>{game.timer}s</div>
+            <button onClick={() => setShowLB(!showLB)} className="p-3 hover:bg-white/10 rounded-2xl transition"><List size={24}/></button>
           </div>
 
           {!showLB ? (
             <div className="flex flex-col items-center">
-              <button 
+                <button 
                 onClick={async () => {
-                  if (!game.buzzerOpen || isMyB) return;
-                  await updateDoc(getRef(code), { buzzes: arrayUnion({ playerId: player.id, playerName: player.name, timestamp: Date.now() }) });
+                    if (!game.buzzerOpen || isMyB || game.timer === 0) return;
+                    await updateDoc(getRef(code), { buzzes: arrayUnion({ playerId: player.id, playerName: player.name, timestamp: Date.now() }) });
                 }} 
-                disabled={!game.buzzerOpen || !!isMyB}
-                className={`w-72 h-72 rounded-full transition-all active:scale-90 border-8 flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !isMyB ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400 shadow-[0_0_50px_rgba(244,63,94,0.4)]' : 'bg-slate-800 border-white/5 opacity-50'}`}
-              >
-                <Zap size={80} /><span className="font-black text-2xl uppercase">{isMyB ? 'LOCKED' : 'BUZZ'}</span>
-              </button>
-              {isMyB && <div className="mt-12 text-yellow-400 text-6xl font-black italic animate-bounce">RANK: {myRank}</div>}
-              {game.timer === 0 && !isMyB && <div className="mt-12 text-red-500 font-black uppercase tracking-widest">Time's Up</div>}
+                disabled={!game.buzzerOpen || !!isMyB || game.timer === 0}
+                className={`w-72 h-72 rounded-full transition-all active:scale-95 border-8 flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !isMyB && game.timer > 0 ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400 shadow-[0_0_80px_rgba(244,63,94,0.4)] animate-pulse' : 'bg-slate-900 border-white/5 opacity-50'}`}
+                >
+                    <Zap size={80} />
+                    <span className="font-black text-2xl tracking-widest uppercase">{isMyB ? 'Locked' : 'Buzz'}</span>
+                </button>
+                {isMyB && <div className="mt-12 text-yellow-400 text-7xl font-black italic animate-bounce drop-shadow-2xl">RANK: {myRank}</div>}
+                {!game.buzzerOpen && !isMyB && <div className="mt-12 text-slate-500 uppercase font-black tracking-widest opacity-50">Wait for Start</div>}
+                {game.timer === 0 && !isMyB && <div className="mt-12 text-red-500 font-black uppercase tracking-widest">Time Up</div>}
             </div>
           ) : (
-            <div className="w-full max-w-sm glass rounded-3xl p-6 mt-16 animate-in slide-in-from-bottom">
-              <div className="flex justify-between items-center mb-6"><h3 className="text-xs font-black uppercase text-yellow-500 tracking-widest">Standings</h3><button onClick={()=>setShowLB(false)} className="text-[10px] text-slate-500 uppercase">Close</button></div>
-              <div className="space-y-3">
+            <div className="w-full max-w-sm glass rounded-[2.5rem] p-8 mt-20 animate-in slide-in-from-bottom duration-300 h-[60vh] flex flex-col">
+              <div className="flex justify-between items-center mb-8 flex-shrink-0"><h3 className="text-sm font-black uppercase text-yellow-500 tracking-widest">Leaderboard</h3><button onClick={()=>setShowLB(false)} className="text-[10px] text-slate-600 uppercase font-black">Close</button></div>
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
                 {Object.values(game.players || {}).sort((a,b)=>b.score-a.score).map((p, i) => (
-                  <div key={p.id} className={`flex justify-between p-3 rounded-xl ${p.id === player.id ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-white/5'}`}>
-                    <div className="flex gap-3 items-center"><span className="text-xs font-mono text-slate-500">#{i+1}</span><span className="text-sm font-bold">{p.name}</span></div>
-                    <span className="font-mono font-bold">{p.score}</span>
+                  <div key={p.id} className={`flex justify-between p-4 rounded-2xl ${p.id === player.id ? 'bg-blue-600/20 border border-blue-500/40' : 'bg-white/5'} ${!p.isActive ? 'opacity-30' : ''}`}>
+                    <div className="flex gap-4 items-center"><span className="text-xs font-mono text-slate-500">#{i+1}</span><span className="text-sm font-bold">{p.name}</span></div>
+                    <span className="font-mono font-black text-blue-400">{p.score}</span>
                   </div>
                 ))}
               </div>
@@ -287,35 +319,43 @@
     const ProjectorView = ({ code }) => {
       const [g, setG] = useState(null);
       const prevB = useRef(0);
+      const prevT = useRef(30);
+
       useEffect(() => {
         return onSnapshot(getRef(code), (d) => {
           if (d.exists()) {
             const data = d.data();
-            if ((data.buzzes?.length || 0) > prevB.current) playDing();
+            if ((data.buzzes?.length || 0) > prevB.current) playSound(880, 0.4, 'sine', 0.2);
+            if (data.buzzerOpen && data.timer <= 5 && data.timer > 0 && data.timer !== prevT.current) playSound(440, 0.1, 'triangle', 0.1);
+            if (data.timer === 0 && prevT.current > 0) playSound(220, 0.8, 'square', 0.15);
             prevB.current = data.buzzes?.length || 0;
+            prevT.current = data.timer;
             setG(data);
           }
         });
       }, [code]);
-      if (!g) return null;
+
+      if (!g) return <div className="p-20 text-center text-4xl font-black italic opacity-20">CONNECTING...</div>;
+      const ps = Object.values(g.players || {}).filter(p=>p.isActive).sort((a,b)=>b.score-a.score);
       const bz = (g.buzzes || []).slice(0, 5);
+
       return (
-        <div className="min-h-screen flex flex-col p-10">
-          <div className="glass rounded-[3rem] p-12 mb-10 flex justify-between items-center">
-            <div><div className="text-slate-500 uppercase text-xs font-black mb-2 tracking-widest">Room Code</div><div className="text-9xl font-black font-mono text-yellow-500">{g.code}</div></div>
-            <div className="text-[18rem] font-black font-mono">{g.timer}s</div>
-            <div className="text-right"><div className="text-slate-500 uppercase text-xs font-black mb-2 tracking-widest">Active Players</div><div className="text-9xl font-black text-blue-500">{Object.values(g.players || {}).filter(p=>p.isActive).length}</div></div>
+        <div className="min-h-screen flex flex-col p-12">
+          <div className="glass rounded-[4rem] p-16 mb-12 flex justify-between items-center shadow-2xl border-white/5">
+            <div><div className="text-slate-500 uppercase text-xs font-black mb-4 tracking-widest">Join Code</div><div className="text-[10rem] font-black font-mono text-yellow-400 leading-none">{g.code}</div></div>
+            <div className={`text-[20rem] font-black font-mono leading-none ${g.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{g.timer}s</div>
+            <div className="text-right"><div className="text-slate-500 uppercase text-xs font-black mb-4 tracking-widest">Qualifiers</div><div className="text-[10rem] font-black text-blue-500 leading-none">{ps.length}</div></div>
           </div>
-          <div className="flex-1 glass rounded-[3rem] p-12 overflow-hidden">
-            <h2 className="text-4xl font-black mb-10 text-pink-500 uppercase tracking-widest">Buzzer Queue</h2>
-            <div className="space-y-6">
+          <div className="flex-1 glass rounded-[4rem] p-16 overflow-hidden border-white/5 relative">
+            <h2 className="text-5xl font-black mb-12 text-pink-500 uppercase tracking-widest italic flex items-center gap-6"><Zap size={48}/> Current Queue</h2>
+            <div className="space-y-8">
               {bz.map((b, i) => (
-                <div key={i} className="glass p-8 rounded-[2rem] flex justify-between items-center animate-in zoom-in">
-                  <div className="flex items-center gap-10"><div className="bg-white text-black w-20 h-20 rounded-full flex items-center justify-center font-black text-5xl">{i+1}</div><div className="text-7xl font-black">{b.playerName}</div></div>
-                  <div className="text-5xl font-mono text-slate-500">{i===0 ? <span className="text-emerald-400">WINNER</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
+                <div key={i} className="glass p-10 rounded-[3rem] flex justify-between items-center animate-in zoom-in duration-500">
+                  <div className="flex items-center gap-12"><div className="bg-white text-black w-24 h-24 rounded-full flex items-center justify-center font-black text-6xl shadow-2xl">{i+1}</div><div className="text-8xl font-black tracking-tight">{b.playerName}</div></div>
+                  <div className="text-6xl font-mono text-slate-500 font-bold">{i===0 ? <span className="text-emerald-400 uppercase tracking-widest font-black italic">First</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
                 </div>
               ))}
-              {bz.length === 0 && <div className="text-center text-slate-800 text-8xl font-black italic mt-20 opacity-20 tracking-tighter">WAITING FOR BUZZ...</div>}
+              {bz.length === 0 && <div className="text-center text-slate-800 text-9xl font-black italic mt-32 opacity-10">READY</div>}
             </div>
           </div>
         </div>
@@ -325,8 +365,8 @@
     function BuzzerApp() {
       const [user, setUser] = useState(null);
       const [mode, setMode] = useState(null);
-      const [gameCode, setGameCode] = useState('');
-      const [passcode, setPasscode] = useState('');
+      const [gCode, setGCode] = useState('');
+      const [pass, setPass] = useState('');
       const [err, setErr] = useState('');
       const [activeP, setActiveP] = useState(null);
       const [activeG, setActiveG] = useState(null);
@@ -341,62 +381,58 @@
 
       const joinAsPlayer = async () => {
         setErr('');
-        const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gameCode.toUpperCase())));
-        if (d.empty) return setErr("Room not found");
-        const rData = d.docs[0].data();
-        const p = Object.values(rData.players || {}).find(pl => pl.code === passcode.toUpperCase());
-        if (!p) return setErr("Invalid Passcode");
-        setMode('player_active');
-        onSnapshot(getRef(rData.code), (snap) => {
-          const data = snap.data();
-          setActiveG(data);
-          if (data.players[p.id]) setActiveP(data.players[p.id]);
-        });
+        try {
+          const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gCode.toUpperCase())));
+          if (d.empty) return setErr("Room not found");
+          const rData = d.docs[0].data();
+          const p = Object.values(rData.players || {}).find(pl => pl.code === pass.toUpperCase());
+          if (!p) return setErr("Invalid Passcode");
+          setMode('player_active');
+          onSnapshot(getRef(rData.code), (snap) => {
+            const data = snap.data();
+            setActiveG(data);
+            if (data.players[p.id]) setActiveP(data.players[p.id]);
+          });
+        } catch(e) { setErr("Network error"); }
       };
 
       if (mode === 'host_auth') {
         const [isL, setIsL] = useState(true);
         const [em, setEm] = useState('');
         const [ps, setPs] = useState('');
-        const h = async (e) => {
-          e.preventDefault();
-          try {
-            if (isL) await signInWithEmailAndPassword(auth, em, ps);
-            else await createUserWithEmailAndPassword(auth, em, ps);
-          } catch(e) { alert(e.message); }
-        };
+        const h = async (e) => { e.preventDefault(); try { if (isL) await signInWithEmailAndPassword(auth, em, ps); else await createUserWithEmailAndPassword(auth, em, ps); } catch(e) { alert(e.message); } };
         return (
-          <div className="min-h-screen flex items-center justify-center p-6"><div className="max-w-md w-full glass p-10 rounded-[3rem]">
-            <h2 className="text-3xl font-black mb-8 text-center">{isL ? 'Host Login' : 'Host Sign Up'}</h2>
-            <form onSubmit={h} className="space-y-4">
-              <input type="email" placeholder="Email" className="glass-input w-full px-6 py-4 rounded-2xl" onChange={e=>setEm(e.target.value)} />
-              <input type="password" placeholder="Password" className="glass-input w-full px-6 py-4 rounded-2xl" onChange={e=>setPs(e.target.value)} />
-              <button className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase">Go</button>
+          <div className="min-h-screen flex items-center justify-center p-6"><div className="max-w-md w-full glass p-12 rounded-[3rem]">
+            <h2 className="text-4xl font-black mb-10 text-center italic">{isL ? 'Login' : 'Signup'}</h2>
+            <form onSubmit={h} className="space-y-6">
+              <input type="email" placeholder="Email" className="glass-input w-full px-8 py-5 rounded-[1.5rem]" onChange={e=>setEm(e.target.value)} />
+              <input type="password" placeholder="Password" className="glass-input w-full px-8 py-5 rounded-[1.5rem]" onChange={e=>setPs(e.target.value)} />
+              <button className="w-full bg-blue-600 py-5 rounded-[1.5rem] font-black uppercase">Continue</button>
             </form>
-            <button onClick={()=>setIsL(!isL)} className="w-full mt-6 text-xs text-slate-500 uppercase">{isL ? 'Sign Up' : 'Login'}</button>
-            <button onClick={()=>setMode(null)} className="w-full mt-4 text-[10px] text-slate-700 uppercase">Back</button>
+            <button onClick={()=>setIsL(!isL)} className="w-full mt-8 text-xs text-slate-500 uppercase font-black">{isL ? "Create Account" : "Back to Login"}</button>
+            <button onClick={()=>setMode(null)} className="w-full mt-6 text-[10px] text-slate-700 uppercase">Back</button>
           </div></div>
         );
       }
 
       if (user && !mode) return <HostDashboard user={user} />;
-      if (mode === 'projector') return <ProjectorView code={gameCode} />;
-      if (mode === 'player_active') return <PlayerView game={activeG} player={activeP} code={gameCode} />;
+      if (mode === 'projector') return <ProjectorView code={gCode} />;
+      if (mode === 'player_active') return <PlayerView game={activeG} player={activeP} code={gCode} />;
 
       return (
         <div className="min-h-screen flex items-center justify-center p-6 text-white"><div className="max-w-md w-full text-center">
-            <h1 className="text-6xl font-black mb-10 italic tracking-tighter">BuzzerBeater</h1>
-            <div className="glass p-10 rounded-[3rem] space-y-8 text-left border border-white/10 shadow-2xl">
-               <div className="flex gap-2 p-1.5 bg-black/40 rounded-2xl">
-                 <button onClick={() => setMode(null)} className={`flex-1 py-3 text-xs font-bold rounded-xl ${!mode ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}>PLAY</button>
-                 <button onClick={() => setMode('projector_entry')} className={`flex-1 py-3 text-xs font-bold rounded-xl ${mode === 'projector_entry' ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}>PROJECT</button>
-                 <button onClick={() => setMode('host_auth')} className="flex-1 py-3 text-xs font-bold rounded-xl text-slate-500 uppercase">HOST</button>
+            <h1 className="text-[5rem] leading-none font-black mb-16 italic tracking-tighter">BuzzerBeater</h1>
+            <div className="glass p-12 rounded-[3.5rem] space-y-10 text-left border border-white/10 shadow-2xl">
+               <div className="flex gap-2 p-2 bg-black/50 rounded-[2rem]">
+                 <button onClick={() => setMode(null)} className={`flex-1 py-4 text-xs font-black rounded-[1.5rem] transition uppercase ${!mode ? 'bg-white text-black' : 'text-slate-500'}`}>Play</button>
+                 <button onClick={() => setMode('projector_entry')} className={`flex-1 py-4 text-xs font-black rounded-[1.5rem] transition uppercase ${mode === 'projector_entry' ? 'bg-white text-black' : 'text-slate-500'}`}>Project</button>
+                 <button onClick={() => setMode('host_auth')} className="flex-1 py-4 text-xs font-black rounded-[1.5rem] text-slate-500 uppercase">Host</button>
                </div>
-               <div className="space-y-6">
-                 <input value={gameCode} onChange={e => setGameCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-[1.5rem] px-8 py-5 text-center text-4xl font-mono" placeholder="ROOM CODE"/>
-                 {mode !== 'projector_entry' && <input value={passcode} onChange={e => setPasscode(e.target.value.toUpperCase())} className="glass-input w-full rounded-[1.5rem] px-8 py-5 text-center text-4xl font-mono" placeholder="PASSCODE"/>}
+               <div className="space-y-8">
+                 <input value={gCode} onChange={e => setGCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-6 text-center text-5xl font-mono" placeholder="ROOM CODE"/>
+                 {mode !== 'projector_entry' && <input value={pass} onChange={e => setPass(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-6 text-center text-5xl font-mono" placeholder="PASSCODE"/>}
                  {err && <div className="text-red-400 text-xs text-center font-bold">{err}</div>}
-                 <button onClick={mode === 'projector_entry' ? () => setMode('projector') : joinAsPlayer} className="w-full bg-blue-600 py-6 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl transition active:scale-95">Enter</button>
+                 <button onClick={mode === 'projector_entry' ? () => setMode('projector') : joinAsPlayer} className="w-full bg-blue-600 py-7 rounded-[2rem] font-black uppercase tracking-widest text-xl shadow-2xl transition active:scale-95">Enter</button>
                </div>
             </div>
         </div></div>
