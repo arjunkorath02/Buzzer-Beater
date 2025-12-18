@@ -1,338 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BuzzerBeater | Pro</title>
-  
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23f43f5e'/%3E%3Cpath d='M13 2L3 14h9v8l10-12h-9l1-8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-    :root {
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --glass-bg: rgba(20, 20, 25, 0.6);
-      --glass-highlight: rgba(255, 255, 255, 0.03);
-    }
-    body {
-      margin: 0; font-family: 'Inter', sans-serif; background-color: #000;
-      background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%);
-      color: #fff; overflow-x: hidden;
-    }
-    .liquid-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; filter: blur(100px); opacity: 0.8; background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%); }
-    .glass-panel { background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
-    .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.3s ease; color: white; }
-    .glass-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.2s ease; }
-    #loading-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #09090b; z-index: 9999; }
-    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body>
-  <div class="liquid-bg"></div>
-  <div id="loading-screen"><div class="spinner"></div></div>
-  <div id="root"></div>
+// --- PROJECTOR VIEW (Corrected Sorting) ---
+const ProjectorView = ({ gameCode }) => {
+  const [game, setGame] = useState(null);
+  useEffect(() => onSnapshot(getGameDocRef(gameCode), (d) => setGame(d.data())), [gameCode]);
 
-  <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
-    import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, collection, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { Monitor, Trophy, Zap, Plus, Minus, RefreshCw, ChevronRight, UserPlus, Check, Trash2, Download } from 'https://esm.sh/lucide-react@0.294.0';
+  if (!game) return <InlineLoading msg="Connecting Projector..." />;
 
-    const prodConfig = {
-      apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
-      authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
-      projectId: "buzzer-beater-ae6f8",
-      storageBucket: "buzzer-beater-ae6f8.firebasestorage.app",
-      messagingSenderId: "837054021400",
-      appId: "1:837054021400:web:1cf3959c05f2c2e43a286d"
-    };
+  // Dynamic sorting by score (Descending)
+  const players = Object.values(game.players || {}).sort((a, b) => b.score - a.score);
+  const buzzes = (game.buzzes || []).slice(0, 5);
 
-    const app = initializeApp(prodConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const getGameDocRef = (code) => doc(db, 'gameRooms', code);
-    const generateCode = (n) => {
-      const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      return Array.from({length:n}, () => c.charAt(Math.floor(Math.random()*c.length))).join('');
-    };
-
-    const formatTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-
-    // --- SHARED LOADING ---
-    const InlineLoading = ({ msg }) => (
-      <div className="flex flex-col items-center justify-center p-20 gap-4 text-slate-400">
-        <RefreshCw className="animate-spin" />
-        <p className="text-xs uppercase tracking-widest">{msg || 'Syncing...'}</p>
-      </div>
-    );
-
-    // --- PROJECTOR ---
-    const ProjectorView = ({ gameCode }) => {
-      const [game, setGame] = useState(null);
-      useEffect(() => onSnapshot(getGameDocRef(gameCode), (d) => setGame(d.data())), [gameCode]);
-
-      if (!game) return <InlineLoading msg="Connecting Projector..." />;
-      const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
-      const buzzes = (game.buzzes || []).slice(0, 5);
-
-      return (
-        <div className="min-h-screen text-white flex flex-col p-8">
-           <div className="glass-panel rounded-3xl p-8 mb-6 flex justify-between items-center">
-              <div><div className="text-xs uppercase text-slate-500 mb-2">Room</div><div className="text-8xl font-black font-mono text-yellow-400">{game.code}</div></div>
-              <div className={`text-[12rem] font-black font-mono ${game.timer <= 5 && game.timer > 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{formatTime(game.timer)}</div>
-              <div className="text-right"><div className="text-xs uppercase text-slate-500 mb-2">Players</div><div className="text-8xl font-black text-blue-400">{players.length}</div></div>
-           </div>
-           <div className="flex-1 flex gap-8 min-h-0">
-              <div className="flex-1 glass-panel rounded-3xl p-8">
-                 <h2 className="text-2xl font-bold mb-6 text-pink-400 uppercase tracking-widest flex items-center gap-2"><Zap /> Buzzers</h2>
-                 <div className="space-y-4">
-                    {buzzes.map((b, i) => (
-                      <div key={i} className="glass-btn p-6 rounded-2xl flex justify-between items-center animate-in slide-in-from-left">
-                        <div className="flex items-center gap-6"><div className="bg-white text-black w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl">{i+1}</div><div className="text-4xl font-bold">{b.playerName}</div></div>
-                        <div className="text-2xl font-mono text-slate-400">{i===0 ? "WINNER" : `+${b.timestamp - buzzes[0].timestamp}ms`}</div>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-              <div className="w-1/3 glass-panel rounded-3xl p-8 overflow-hidden flex flex-col">
-                 <h2 className="text-2xl font-bold mb-6 text-yellow-400 uppercase tracking-widest flex items-center gap-2"><Trophy /> Standings</h2>
-                 <div className="overflow-y-auto pr-2 space-y-4">
-                    {players.map((p, i) => (
-                      <div key={p.id} className="flex justify-between items-center py-2 border-b border-white/5">
-                        <span className="text-xl font-bold"><span className="text-slate-500 text-sm font-mono mr-3">#{i+1}</span>{p.name}</span>
-                        <span className="text-2xl font-mono font-bold text-yellow-500">{p.score}</span>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-           </div>
-        </div>
-      );
-    };
-
-    // --- HOST ---
-    const HostView = ({ user, onExit }) => {
-      const [viewState, setViewState] = useState('list');
-      const [games, setGames] = useState([]);
-      const [activeGameId, setActiveGameId] = useState(null);
-      const [gameData, setGameData] = useState(null);
-      const [newPlayerName, setNewPlayerName] = useState('');
-
-      useEffect(() => {
-        const q = query(collection(db, 'gameRooms'), where('hostId', '==', user.uid));
-        return onSnapshot(q, (s) => {
-          const l = []; s.forEach(d => l.push({ id: d.id, ...d.data() }));
-          setGames(l);
-        });
-      }, [user]);
-
-      useEffect(() => {
-        if (!activeGameId) return;
-        return onSnapshot(getGameDocRef(activeGameId), (d) => setGameData(d.data()));
-      }, [activeGameId]);
-
-      useEffect(() => {
-        let t;
-        if (gameData?.buzzerOpen && gameData?.timer > 0) {
-          t = setInterval(() => {
-            const n = gameData.timer - 1;
-            updateDoc(getGameDocRef(activeGameId), { timer: n, buzzerOpen: n > 0 });
-          }, 1000);
-        }
-        return () => clearInterval(t);
-      }, [gameData?.buzzerOpen, gameData?.timer]);
-
-      const createGame = async () => {
-        const c = generateCode(6);
-        await setDoc(getGameDocRef(c), { hostId: user.uid, code: c, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, createdAt: serverTimestamp() });
-        setActiveGameId(c); setViewState('lobby');
-      };
-
-      if (viewState === 'list') return (
-        <div className="p-10 max-w-4xl mx-auto text-white">
-          <div className="flex justify-between items-center mb-10"><h1 className="text-3xl font-black">Dashboard</h1><button onClick={onExit} className="glass-btn px-6 py-2 rounded-full">Exit</button></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div onClick={createGame} className="glass-panel p-10 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center cursor-pointer hover:bg-white/5 transition"><Plus size={40} className="mb-4 text-blue-400" /><span className="font-bold">New Room</span></div>
-            {games.map(g => (
-              <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5">
-                <div className="text-4xl font-mono font-bold text-blue-400">{g.code}</div>
-                <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest">{Object.keys(g.players||{}).length} Players</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-
-      if (!gameData) return <InlineLoading />;
-
-      return (
-        <div className="min-h-screen flex flex-col">
-          <div className="glass-panel p-4 flex justify-between items-center sticky top-0 z-20">
-            <button onClick={() => setViewState('list')} className="p-2 hover:bg-white/10 rounded-full"><ChevronRight className="rotate-180" /></button>
-            <div className="text-center"><div className="text-2xl font-mono font-bold text-yellow-500">{gameData.code}</div></div>
-            <div className="flex items-center gap-4">
-              <div className="text-3xl font-mono font-bold">{formatTime(gameData.timer)}</div>
-              <button onClick={() => updateDoc(getGameDocRef(activeGameId), { buzzerOpen: !gameData.buzzerOpen, buzzes: gameData.buzzerOpen ? [] : gameData.buzzes, timer: gameData.buzzerOpen ? gameData.initialTimer : gameData.timer })} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs ${gameData.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                {gameData.buzzerOpen ? 'Stop' : 'Start'}
-              </button>
-            </div>
-          </div>
-          <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="glass-panel p-6 rounded-3xl h-fit">
-              <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">Add Player</h3>
-              <div className="flex gap-2">
-                <input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 px-4 py-3 rounded-xl outline-none" />
-                <button onClick={async () => {
-                  const pid = crypto.randomUUID();
-                  await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: { id: pid, name: newPlayerName, code: generateCode(4), score: 0 } });
-                  setNewPlayerName('');
-                }} className="bg-blue-600 p-3 rounded-xl"><UserPlus /></button>
-              </div>
-            </div>
-            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
-               <table className="w-full text-left">
-                 <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5"><tr><th className="p-4">Name</th><th className="p-4">Passcode</th><th className="p-4 text-right">Score</th><th className="p-4"></th></tr></thead>
-                 <tbody>
-                   {Object.values(gameData.players || {}).map(p => (
-                     <tr key={p.id} className="border-b border-white/5">
-                       <td className="p-4 font-bold">{p.name}</td>
-                       <td className="p-4"><span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded font-mono">{p.code}</span></td>
-                       <td className="p-4 text-right font-mono text-xl">{p.score}</td>
-                       <td className="p-4 flex justify-end gap-2">
-                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score + 1 })} className="p-2 glass-btn rounded"><Plus size={14}/></button>
-                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-red-500"><Trash2 size={14}/></button>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    // --- PLAYER ---
-    const PlayerView = ({ game, player, gameCode }) => {
-      // If data is still loading, show loading screen instead of background only
-      if (!game || !player) return <InlineLoading msg="Waiting for game data..." />;
-
-      const isMyBuzz = (game.buzzes || []).find(b => b.playerId === player.id);
-      
-      const handleBuzz = async () => {
-        if (!game.buzzerOpen || isMyBuzz) return;
-        await updateDoc(getGameDocRef(gameCode), {
-          buzzes: arrayUnion({
-            playerId: player.id,
-            playerName: player.name,
-            timestamp: Date.now()
-          })
-        });
-      };
-
-      return (
-        <div className="min-h-screen flex flex-col p-6 items-center justify-center">
-          <div className="glass-panel w-full max-w-sm p-6 rounded-3xl flex justify-between items-center mb-10 absolute top-6">
-            <div><div className="text-xl font-bold">{player.name}</div><div className="text-xs text-slate-500">Score: {player.score}</div></div>
-            <div className="text-3xl font-mono font-bold text-blue-400">{game.timer}s</div>
+  return (
+    <div className="min-h-screen text-white flex flex-col p-8">
+       {/* ... Header UI ... */}
+       <div className="flex-1 flex gap-8 min-h-0">
+          {/* Buzzer List */}
+          <div className="flex-1 glass-panel rounded-3xl p-8">
+             <h2 className="text-2xl font-bold mb-6 text-pink-400 uppercase tracking-widest flex items-center gap-2"><Zap /> Buzzers</h2>
+             <div className="space-y-4">
+                {buzzes.map((b, i) => (
+                  <div key={i} className="glass-btn p-6 rounded-2xl flex justify-between items-center">
+                    <div className="flex items-center gap-6">
+                        <div className="bg-white text-black w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl">{i+1}</div>
+                        <div className="text-4xl font-bold">{b.playerName}</div>
+                    </div>
+                    <div className="text-2xl font-mono text-slate-400">
+                        {i===0 ? "WINNER" : `+${b.timestamp - buzzes[0].timestamp}ms`}
+                    </div>
+                  </div>
+                ))}
+             </div>
           </div>
 
-          <button 
-            onClick={handleBuzz} 
-            disabled={!game.buzzerOpen || !!isMyBuzz}
-            className={`w-64 h-64 rounded-full transition-all active:scale-90 shadow-2xl flex flex-col items-center justify-center gap-2 ${game.buzzerOpen && !isMyBuzz ? 'bg-gradient-to-br from-rose-500 to-red-700' : 'bg-slate-800 opacity-50'}`}
-          >
-            {isMyBuzz ? <Check size={60} /> : <Zap size={60} />}
-            <span className="font-black text-xl uppercase tracking-widest">{isMyBuzz ? 'BUZZED' : 'BUZZ'}</span>
-          </button>
-          
-          {isMyBuzz && (
-            <div className="mt-10 text-center animate-bounce">
-              <div className="text-yellow-400 text-3xl font-black">RANK: {(game.buzzes || []).findIndex(b => b.playerId === player.id) + 1}</div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    // --- MAIN APP ---
-    function BuzzerApp() {
-      const [user, setUser] = useState(null);
-      const [mode, setMode] = useState(null);
-      const [gameCode, setGameCode] = useState('');
-      const [playerPasscode, setPlayerPasscode] = useState('');
-      const [error, setError] = useState('');
-      const [activePlayer, setActivePlayer] = useState(null);
-      const [activeGame, setActiveGame] = useState(null);
-
-      useEffect(() => {
-        onAuthStateChanged(auth, u => {
-          setUser(u);
-          if (!u) signInAnonymously(auth);
-          const ls = document.getElementById('loading-screen');
-          if (ls) ls.style.display = 'none';
-        });
-      }, []);
-
-      const joinAsPlayer = async () => {
-        setError('');
-        if (!gameCode || !playerPasscode) return setError("Required fields missing");
-        
-        try {
-          const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gameCode.toUpperCase())));
-          if (d.empty) return setError("Room not found");
-          
-          const roomData = d.docs[0].data();
-          const p = Object.values(roomData.players || {}).find(pl => pl.code === playerPasscode.toUpperCase());
-          
-          if (!p) return setError("Invalid Passcode");
-
-          setMode('player_active');
-          // Subscribe to real-time updates for BOTH game and player
-          onSnapshot(getGameDocRef(roomData.code), (snap) => {
-            const data = snap.data();
-            if (data) {
-              setActiveGame(data);
-              if (data.players[p.id]) setActivePlayer(data.players[p.id]);
-            }
-          });
-        } catch (e) {
-          setError("Connection error");
-        }
-      };
-
-      if (mode === 'host') return <HostView user={user} onExit={() => setMode(null)} />;
-      if (mode === 'projector') return <ProjectorView gameCode={gameCode} />;
-      if (mode === 'player_active') return <PlayerView game={activeGame} player={activePlayer} gameCode={gameCode} />;
-
-      return (
-        <div className="min-h-screen flex items-center justify-center p-6 text-white">
-          <div className="max-w-md w-full text-center">
-            <h1 className="text-5xl font-black mb-10 tracking-tighter">BuzzerBeater</h1>
-            <div className="glass-panel p-8 rounded-[2rem] space-y-6 text-left">
-               <div className="flex gap-2 p-1 bg-black/20 rounded-xl">
-                 <button onClick={() => setMode(null)} className={`flex-1 py-2 text-xs font-bold rounded-lg ${!mode ? 'bg-white text-black' : 'text-slate-400'}`}>PLAY</button>
-                 <button onClick={() => setMode('projector_entry')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${mode === 'projector_entry' ? 'bg-white text-black' : 'text-slate-400'}`}>PROJECT</button>
-                 <button onClick={() => setMode('host')} className="flex-1 py-2 text-xs font-bold rounded-lg text-slate-400">HOST</button>
-               </div>
-               <div className="space-y-4">
-                 <input value={gameCode} onChange={e => setGameCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono" placeholder="ROOM CODE"/>
-                 {mode !== 'projector_entry' && <input value={playerPasscode} onChange={e => setPlayerPasscode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-2xl font-mono" placeholder="PASSCODE"/>}
-                 {error && <div className="text-red-400 text-xs text-center">{error}</div>}
-                 <button onClick={mode === 'projector_entry' ? () => setMode('projector') : joinAsPlayer} className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl">Enter</button>
-               </div>
-            </div>
+          {/* Correctly Sorted Standings */}
+          <div className="w-1/3 glass-panel rounded-3xl p-8 overflow-hidden flex flex-col">
+             <h2 className="text-2xl font-bold mb-6 text-yellow-400 uppercase tracking-widest flex items-center gap-2"><Trophy /> Standings</h2>
+             <div className="overflow-y-auto pr-2 space-y-4">
+                {players.map((p, i) => (
+                  <div key={p.id} className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xl font-bold">
+                        {/* Rank is now based on sorted position */}
+                        <span className="text-slate-500 text-sm font-mono mr-3">#{i+1}</span>
+                        {p.name}
+                    </span>
+                    <span className="text-2xl font-mono font-bold text-yellow-500">{p.score}</span>
+                  </div>
+                ))}
+             </div>
           </div>
-        </div>
-      );
-    }
-    ReactDOM.createRoot(document.getElementById('root')).render(<BuzzerApp />);
-  </script>
-</body>
-</html>
+       </div>
+    </div>
+  );
+};
+
+// --- HOST VIEW (Corrected Table Sorting) ---
+// Inside the return statement of HostView, replace the table body with this:
+<tbody>
+  {Object.values(gameData.players || {})
+    .sort((a, b) => b.score - a.score) // <-- Added this sorting line
+    .map((p, index) => (
+      <tr key={p.id} className="border-b border-white/5">
+        <td className="p-4">
+            <span className="text-slate-500 text-xs font-mono mr-2">#{index + 1}</span>
+            <span className="font-bold">{p.name}</span>
+        </td>
+        <td className="p-4"><span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded font-mono">{p.code}</span></td>
+        <td className="p-4 text-right font-mono text-xl">{p.score}</td>
+        <td className="p-4 flex justify-end gap-2">
+           <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score + 1 })} className="p-2 glass-btn rounded text-green-400"><Plus size={14}/></button>
+           <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score - 1 })} className="p-2 glass-btn rounded text-red-400"><Minus size={14}/></button>
+           <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-500 hover:text-red-500"><Trash2 size={14}/></button>
+        </td>
+      </tr>
+  ))}
+</tbody>
