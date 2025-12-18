@@ -11,19 +11,11 @@
   
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-    :root {
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --glass-bg: rgba(20, 20, 25, 0.6);
-    }
-    body {
-      margin: 0; font-family: 'Inter', sans-serif; background-color: #000;
-      background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%);
-      color: #fff; overflow-x: hidden;
-    }
-    .liquid-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; filter: blur(100px); opacity: 0.8; background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%); }
-    .glass-panel { background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
-    .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); transition: all 0.3s ease; color: white; }
-    .glass-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); }
+    :root { --glass-border: rgba(255, 255, 255, 0.08); --glass-bg: rgba(20, 20, 25, 0.6); }
+    body { margin: 0; font-family: 'Inter', sans-serif; background-color: #000; color: #fff; overflow-x: hidden; background-image: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.4), transparent 25%), radial-gradient(circle at 85% 30%, rgba(219, 39, 119, 0.25), transparent 25%); }
+    .liquid-bg { position: fixed; inset: 0; z-index: -1; filter: blur(100px); opacity: 0.8; background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%); }
+    .glass-panel { background: var(--glass-bg); backdrop-filter: blur(24px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+    .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
     #loading-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #09090b; z-index: 9999; }
     .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #f43f5e; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -35,14 +27,14 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
+    import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, collection, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { Monitor, Trophy, Zap, Plus, Minus, RefreshCw, ChevronRight, UserPlus, Check, Trash2, Download, LogOut, Mail, Lock, AlertCircle } from 'https://esm.sh/lucide-react@0.294.0';
+    import { Trophy, Zap, Plus, Minus, RefreshCw, ChevronRight, UserPlus, Trash2, LogOut, Mail, Lock, CheckCircle2 } from 'https://esm.sh/lucide-react@0.294.0';
 
-    const prodConfig = {
+    const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
       authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
       projectId: "buzzer-beater-ae6f8",
@@ -51,7 +43,7 @@
       appId: "1:837054021400:web:1cf3959c05f2c2e43a286d"
     };
 
-    const app = initializeApp(prodConfig);
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
@@ -61,70 +53,43 @@
       return Array.from({length:n}, () => c.charAt(Math.floor(Math.random()*c.length))).join('');
     };
 
-    // --- HOST AUTH ---
+    // --- COMPONENTS ---
+
     const HostAuth = ({ onBack }) => {
       const [isLogin, setIsLogin] = useState(true);
       const [email, setEmail] = useState('');
       const [pass, setPass] = useState('');
-      const [loading, setLoading] = useState(false);
-      const [msg, setMsg] = useState({ type: '', text: '' });
-
+      const [err, setErr] = useState('');
       const handleAuth = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setMsg({ type: '', text: '' });
         try {
-          if (isLogin) {
-            await signInWithEmailAndPassword(auth, email, pass);
-          } else {
-            await createUserWithEmailAndPassword(auth, email, pass);
-            setMsg({ type: 'success', text: 'Account created! Logging you in...' });
-          }
-        } catch (e) {
-          setMsg({ type: 'error', text: e.message });
-        } finally {
-          setLoading(false);
-        }
+          if (isLogin) await signInWithEmailAndPassword(auth, email, pass);
+          else await createUserWithEmailAndPassword(auth, email, pass);
+        } catch (e) { setErr(e.message); }
       };
-
       return (
         <div className="min-h-screen flex items-center justify-center p-6">
-          <div className="max-w-md w-full glass-panel p-10 rounded-[2.5rem] border border-white/10">
+          <div className="max-w-md w-full glass-panel p-10 rounded-[2.5rem]">
             <h2 className="text-3xl font-black mb-8 text-center">{isLogin ? 'Host Login' : 'Host Sign Up'}</h2>
             <form onSubmit={handleAuth} className="space-y-4">
-              <div className="relative">
-                <Mail className="absolute left-4 top-4 text-slate-500" size={18}/>
-                <input type="email" placeholder="Email" required className="glass-input w-full pl-12 pr-4 py-4 rounded-2xl" value={email} onChange={e=>setEmail(e.target.value)} />
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-4 text-slate-500" size={18}/>
-                <input type="password" placeholder="Password" required className="glass-input w-full pl-12 pr-4 py-4 rounded-2xl" value={pass} onChange={e=>setPass(e.target.value)} />
-              </div>
-              {msg.text && (
-                <div className={`p-4 rounded-xl text-xs flex items-center gap-2 ${msg.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                  {msg.type === 'error' ? <AlertCircle size={14}/> : <Check size={14}/>} {msg.text}
-                </div>
-              )}
-              <button disabled={loading} type="submit" className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase tracking-widest disabled:opacity-50">
-                {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
-              </button>
+              <input type="email" placeholder="Email" required className="glass-input w-full px-6 py-4 rounded-2xl" value={email} onChange={e=>setEmail(e.target.value)} />
+              <input type="password" placeholder="Password" required className="glass-input w-full px-6 py-4 rounded-2xl" value={pass} onChange={e=>setPass(e.target.value)} />
+              {err && <div className="text-red-400 text-xs text-center">{err}</div>}
+              <button type="submit" className="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase tracking-widest">Continue</button>
             </form>
-            <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-6 text-xs text-slate-400 font-bold uppercase tracking-widest hover:text-white transition">
-              {isLogin ? "Don't have an account? Create one" : "Already have an account? Log In"}
-            </button>
-            <button onClick={onBack} className="w-full mt-6 text-[10px] text-slate-600 uppercase hover:text-slate-400 transition">Cancel</button>
+            <button onClick={() => setIsLogin(!isLogin)} className="w-full mt-6 text-xs text-slate-400 font-bold uppercase">{isLogin ? "Create Account" : "Back to Login"}</button>
+            <button onClick={onBack} className="w-full mt-4 text-[10px] text-slate-600 uppercase">Back</button>
           </div>
         </div>
       );
     };
 
-    // --- DASHBOARD ---
-    const HostView = ({ user }) => {
-      const [viewState, setViewState] = useState('list');
+    const HostDashboard = ({ user }) => {
+      const [view, setView] = useState('list');
       const [games, setGames] = useState([]);
-      const [activeGameId, setActiveGameId] = useState(null);
+      const [activeId, setActiveId] = useState(null);
       const [gameData, setGameData] = useState(null);
-      const [newPlayerName, setNewPlayerName] = useState('');
+      const [pName, setPName] = useState('');
 
       useEffect(() => {
         const q = query(collection(db, 'gameRooms'), where('hostId', '==', user.uid));
@@ -135,206 +100,239 @@
       }, [user]);
 
       useEffect(() => {
-        if (!activeGameId) return;
-        return onSnapshot(getGameDocRef(activeGameId), (d) => setGameData(d.data()));
-      }, [activeGameId]);
+        if (!activeId) return;
+        return onSnapshot(getGameDocRef(activeId), (d) => setGameData(d.data()));
+      }, [activeId]);
 
-      if (viewState === 'list') return (
-        <div className="p-10 max-w-4xl mx-auto text-white">
+      if (view === 'list') return (
+        <div className="p-10 max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-10">
-            <div>
-                <h1 className="text-3xl font-black tracking-tight">Host Dashboard</h1>
-                <p className="text-[10px] text-slate-500 uppercase font-bold mt-1">Active Account: {user.email}</p>
-            </div>
-            <button onClick={() => signOut(auth)} className="glass-btn px-6 py-2 rounded-full text-xs font-bold text-slate-300 flex items-center gap-2 hover:bg-red-500/10 hover:text-red-400 transition"><LogOut size={14}/> Sign Out</button>
+            <h1 className="text-3xl font-black">Dashboard</h1>
+            <button onClick={() => signOut(auth)} className="text-slate-500 hover:text-white flex items-center gap-2 font-bold uppercase text-xs"><LogOut size={14}/> Sign Out</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onClick={async () => {
               const c = generateCode(6);
               await setDoc(getGameDocRef(c), { hostId: user.uid, code: c, timer: 30, initialTimer: 30, buzzerOpen: false, buzzes: [], players: {}, createdAt: serverTimestamp() });
-              setActiveGameId(c); setViewState('lobby');
-            }} className="glass-panel p-12 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition group">
-              <Plus size={48} className="mb-4 text-blue-400 group-hover:scale-110 transition" /><span className="font-bold">Create Game Room</span>
+              setActiveId(c); setView('lobby');
+            }} className="glass-panel p-12 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center cursor-pointer hover:bg-white/5 transition">
+              <Plus size={48} className="text-blue-400 mb-2" /><span className="font-bold">New Game</span>
             </div>
             {games.map(g => (
-              <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 border border-white/5 relative">
+              <div key={g.id} onClick={() => { setActiveId(g.id); setView('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 border border-white/5">
                 <div className="text-4xl font-mono font-bold text-blue-400">{g.code}</div>
-                <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest">{Object.keys(g.players||{}).length} Players</div>
+                <div className="text-xs text-slate-500 mt-2 uppercase">{Object.keys(g.players||{}).length} Players</div>
               </div>
             ))}
           </div>
         </div>
       );
 
-      if (!gameData) return <div className="p-20 text-center text-slate-500">Loading Game Data...</div>;
+      if (!gameData) return <div className="p-20 text-center">Loading...</div>;
 
       return (
         <div className="min-h-screen flex flex-col">
           <div className="glass-panel p-4 flex justify-between items-center sticky top-0 z-20">
-            <button onClick={() => setViewState('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button>
-            <div className="text-center"><div className="text-2xl font-mono font-bold text-yellow-500">{gameData.code}</div></div>
+            <button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button>
+            <div className="text-center font-mono font-bold text-yellow-500 text-2xl">{gameData.code}</div>
             <div className="flex items-center gap-4">
               <div className="text-3xl font-mono font-bold">{gameData.timer}s</div>
-              <button onClick={() => updateDoc(getGameDocRef(activeGameId), { buzzerOpen: !gameData.buzzerOpen, buzzes: gameData.buzzerOpen ? [] : gameData.buzzes, timer: gameData.buzzerOpen ? gameData.initialTimer : gameData.timer })} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs ${gameData.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                {gameData.buzzerOpen ? 'Stop & Clear' : 'Open Buzzers'}
+              <button onClick={() => updateDoc(getGameDocRef(activeId), { buzzerOpen: !gameData.buzzerOpen, buzzes: gameData.buzzerOpen ? [] : gameData.buzzes, timer: gameData.buzzerOpen ? gameData.initialTimer : gameData.timer })} className={`px-8 py-2 rounded-xl font-bold uppercase text-xs ${gameData.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                {gameData.buzzerOpen ? 'Stop' : 'Start'}
               </button>
             </div>
           </div>
           <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="glass-panel p-6 rounded-3xl h-fit">
-              <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Register Player</h3>
-              <div className="flex gap-2">
-                <input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 px-4 py-3 rounded-xl outline-none" />
-                <button onClick={async () => {
-                  if (!newPlayerName.trim()) return;
-                  const pid = crypto.randomUUID();
-                  await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: { id: pid, name: newPlayerName, code: generateCode(4), score: 0 } });
-                  setNewPlayerName('');
-                }} className="bg-blue-600 p-3 rounded-xl hover:bg-blue-500"><UserPlus/></button>
+            <div className="space-y-6">
+              <div className="glass-panel p-6 rounded-3xl">
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Register Player</h3>
+                <div className="flex gap-2">
+                  <input value={pName} onChange={e => setPName(e.target.value)} placeholder="Full Name" className="glass-input flex-1 px-4 py-3 rounded-xl outline-none" />
+                  <button onClick={async () => {
+                    if (!pName.trim()) return;
+                    const pid = crypto.randomUUID();
+                    await updateDoc(getGameDocRef(activeId), { [`players.${pid}`]: { id: pid, name: pName, code: generateCode(4), score: 0 } });
+                    setPName('');
+                  }} className="bg-blue-600 p-3 rounded-xl"><UserPlus/></button>
+                </div>
+              </div>
+              <div className="glass-panel p-6 rounded-3xl h-[300px] flex flex-col">
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Top 5 Buzzers</h3>
+                <div className="space-y-2 overflow-y-auto">
+                  {(gameData.buzzes || []).slice(0, 5).map((b, i) => (
+                    <div key={i} className="bg-white/5 p-3 rounded-xl flex justify-between items-center animate-in slide-in-from-left">
+                      <div className="flex items-center gap-3"><span className="text-xs font-black text-blue-400">#{i+1}</span><span className="font-bold text-sm">{b.playerName}</span></div>
+                      <span className="text-slate-500 font-mono text-[10px]">+{b.timestamp - gameData.buzzes[0].timestamp}ms</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
-               <table className="w-full text-left">
-                 <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5">
-                   <tr><th className="p-4">Rank</th><th className="p-4">Name</th><th className="p-4">Passcode</th><th className="p-4 text-right">Score</th><th className="p-4"></th></tr>
-                 </thead>
-                 <tbody>
-                   {Object.values(gameData.players || {}).sort((a,b)=>b.score-a.score).map((p, idx) => (
-                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                       <td className="p-4 font-mono text-slate-500 text-xs">#{idx + 1}</td>
-                       <td className="p-4 font-bold text-sm">{p.name}</td>
-                       <td className="p-4"><span className="bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded font-mono text-xs font-bold">{p.code}</span></td>
-                       <td className="p-4 text-right font-mono text-xl">{p.score}</td>
-                       <td className="p-4 flex justify-end gap-2">
-                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score + 1 })} className="p-2 glass-btn rounded text-emerald-400 hover:bg-emerald-400/20 transition"><Plus size={14}/></button>
-                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}.score`]: p.score - 1 })} className="p-2 glass-btn rounded text-rose-400 hover:bg-rose-400/20 transition"><Minus size={14}/></button>
-                          <button onClick={() => updateDoc(getGameDocRef(activeGameId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-500 hover:text-red-500 transition"><Trash2 size={14}/></button>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
+            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden flex flex-col">
+               <div className="p-4 border-b border-white/5 flex justify-between items-center"><h3 className="text-xs font-bold text-slate-500 uppercase">Leaderboard</h3></div>
+               <div className="overflow-y-auto flex-1">
+                 <table className="w-full text-left">
+                   <thead className="text-[10px] text-slate-500 uppercase border-b border-white/5 sticky top-0 bg-[#141419]">
+                     <tr><th className="p-4">Rank</th><th className="p-4">Name</th><th className="p-4">Passcode</th><th className="p-4 text-right">Score</th><th className="p-4"></th></tr>
+                   </thead>
+                   <tbody>
+                     {Object.values(gameData.players || {}).sort((a,b)=>b.score-a.score).map((p, idx) => (
+                       <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+                         <td className="p-4 font-mono text-slate-500 text-xs">#{idx + 1}</td>
+                         <td className="p-4 font-bold text-sm">{p.name}</td>
+                         <td className="p-4"><span className="bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded font-mono text-xs font-bold">{p.code}</span></td>
+                         <td className="p-4 text-right font-mono text-xl">{p.score}</td>
+                         <td className="p-4 flex justify-end gap-2">
+                            <button onClick={() => updateDoc(getGameDocRef(activeId), { [`players.${p.id}.score`]: p.score + 5 })} className="p-2 glass-btn rounded text-emerald-400"><Plus size={14}/></button>
+                            <button onClick={() => updateDoc(getGameDocRef(activeId), { [`players.${p.id}.score`]: p.score - 5 })} className="p-2 glass-btn rounded text-rose-400"><Minus size={14}/></button>
+                            <button onClick={() => updateDoc(getGameDocRef(activeId), { [`players.${p.id}`]: deleteField() })} className="p-2 text-slate-500 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                         </td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
             </div>
           </div>
         </div>
       );
     };
 
-    // --- MAIN APP CONTROLLER ---
+    const ProjectorView = ({ gameCode }) => {
+      const [g, setG] = useState(null);
+      useEffect(() => onSnapshot(getGameDocRef(gameCode), (d) => setG(d.data())), [gameCode]);
+      if (!g) return <div className="p-20 text-center">Connecting...</div>;
+      const ps = Object.values(g.players || {}).sort((a,b) => b.score - a.score);
+      const bz = (g.buzzes || []).slice(0, 5);
+
+      return (
+        <div className="min-h-screen text-white flex flex-col p-8">
+           <div className="glass-panel rounded-3xl p-8 mb-6 flex justify-between items-center">
+              <div><div className="text-xs text-slate-500 mb-2 uppercase">Room</div><div className="text-8xl font-black font-mono text-yellow-400">{g.code}</div></div>
+              <div className="text-[12rem] font-black font-mono">{g.timer}s</div>
+              <div className="text-right"><div className="text-xs text-slate-500 mb-2 uppercase">Players</div><div className="text-8xl font-black text-blue-400">{ps.length}</div></div>
+           </div>
+           <div className="flex-1 flex gap-8">
+              <div className="flex-1 glass-panel rounded-3xl p-8">
+                 <h2 className="text-2xl font-bold mb-6 text-pink-400 flex items-center gap-2 uppercase tracking-widest"><Zap /> Fastest Fingers (Top 5)</h2>
+                 <div className="space-y-4">
+                    {bz.length === 0 && <div className="text-center text-slate-700 text-3xl mt-20 font-light italic">WAITING FOR BUZZ...</div>}
+                    {bz.map((b, i) => (
+                      <div key={i} className="glass-btn p-8 rounded-2xl flex justify-between items-center animate-in slide-in-from-left duration-300">
+                        <div className="flex items-center gap-6"><div className="bg-white text-black w-14 h-14 rounded-full flex items-center justify-center font-black text-3xl">{i+1}</div><div className="text-5xl font-bold">{b.playerName}</div></div>
+                        <div className="text-3xl font-mono text-slate-400">{i===0 ? <span className="text-emerald-400 font-black">WINNER</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
+                      </div>
+                    ))}
+                 </div>
+              </div>
+           </div>
+        </div>
+      );
+    };
+
+    const PlayerView = ({ game, player, gameCode }) => {
+      if (!game || !player) return <div className="p-20 text-center">Syncing...</div>;
+      const buzzes = game.buzzes || [];
+      const isMyB = buzzes.find(b => b.playerId === player.id);
+      const myRank = buzzes.findIndex(b => b.playerId === player.id) + 1;
+
+      const handleBuzz = async () => {
+        if (!game.buzzerOpen || isMyB) return;
+        // CORRECTED UPDATE LOGIC
+        try {
+          await updateDoc(getGameDocRef(gameCode), { 
+            buzzes: arrayUnion({ 
+              playerId: player.id, 
+              playerName: player.name, 
+              timestamp: Date.now() 
+            }) 
+          });
+        } catch (e) { console.error("Buzzer Error:", e); }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col p-6 items-center justify-center">
+          <div className="glass-panel w-full max-w-sm p-6 rounded-3xl flex justify-between items-center absolute top-6">
+            <div><div className="text-xl font-bold">{player.name}</div><div className="text-xs text-slate-500 uppercase font-bold">Points: {player.score}</div></div>
+            <div className="text-4xl font-mono font-bold text-blue-400">{game.timer}s</div>
+          </div>
+          <button 
+            onClick={handleBuzz} 
+            disabled={!game.buzzerOpen || !!isMyB} 
+            className={`w-72 h-72 rounded-full transition-all active:scale-90 flex flex-col items-center justify-center gap-2 border-4 ${game.buzzerOpen && !isMyB ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400 shadow-[0_0_50px_rgba(244,63,94,0.4)]' : 'bg-slate-800 border-white/5 opacity-50 cursor-not-allowed'}`}
+          >
+            {isMyB ? <CheckCircle2 size={80} /> : <Zap size={80} />}
+            <span className="font-black text-2xl uppercase tracking-tighter">{isMyB ? 'BUZZED' : 'BUZZ'}</span>
+          </button>
+          
+          {isMyB && (
+            <div className="mt-12 text-center animate-bounce">
+              <div className="text-yellow-400 text-5xl font-black italic">RANK: {myRank}</div>
+              <div className="text-slate-500 text-[10px] uppercase mt-2 tracking-widest font-bold">Position in current round</div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
     function BuzzerApp() {
       const [user, setUser] = useState(null);
       const [mode, setMode] = useState(null);
       const [gameCode, setGameCode] = useState('');
-      const [playerPasscode, setPlayerPasscode] = useState('');
-      const [error, setError] = useState('');
-      const [activePlayer, setActivePlayer] = useState(null);
-      const [activeGame, setActiveGame] = useState(null);
+      const [passcode, setPasscode] = useState('');
+      const [err, setErr] = useState('');
+      const [activeP, setActiveP] = useState(null);
+      const [activeG, setActiveG] = useState(null);
 
       useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (u) => {
+        onAuthStateChanged(auth, u => {
           setUser(u);
-          // If a host logs in, clear any auth screens
           if (u && mode === 'host_auth') setMode(null);
-          
-          const loader = document.getElementById('loading-screen');
-          if (loader) loader.style.display = 'none';
+          document.getElementById('loading-screen').style.display = 'none';
         });
-        return unsubscribe;
       }, [mode]);
 
       const joinAsPlayer = async () => {
-        setError('');
-        if (!gameCode || !playerPasscode) return setError("Room Code and Passcode required");
+        setErr('');
+        if (!gameCode || !passcode) return setErr("Required fields missing");
         try {
           const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', gameCode.toUpperCase())));
-          if (d.empty) return setError("Room not found");
-          const roomData = d.docs[0].data();
-          const p = Object.values(roomData.players || {}).find(pl => pl.code === playerPasscode.toUpperCase());
-          if (!p) return setError("Invalid Passcode");
+          if (d.empty) return setErr("Room not found");
+          const rData = d.docs[0].data();
+          const p = Object.values(rData.players || {}).find(pl => pl.code === passcode.toUpperCase());
+          if (!p) return setErr("Invalid Passcode");
+          
           setMode('player_active');
-          onSnapshot(getGameDocRef(roomData.code), (snap) => {
+          onSnapshot(getGameDocRef(rData.code), (snap) => {
             const data = snap.data();
             if (data) { 
-                setActiveGame(data); 
-                if (data.players[p.id]) setActivePlayer(data.players[p.id]); 
+              setActiveG(data); 
+              if (data.players[p.id]) setActiveP(data.players[p.id]); 
             }
           });
-        } catch (e) { setError("Check your internet connection."); }
+        } catch (e) { setErr("Connection error."); }
       };
 
-      // RENDER LOGIC
       if (mode === 'host_auth') return <HostAuth onBack={() => setMode(null)} />;
-      if (user && !mode) return <HostView user={user} />;
-      
-      // Projector & Player view use the same existing components
-      if (mode === 'projector') {
-        const ProjectorView = () => {
-            const [game, setGame] = useState(null);
-            useEffect(() => onSnapshot(getGameDocRef(gameCode), (d) => setGame(d.data())), []);
-            if (!game) return <div className="p-20 text-center">Loading Projector...</div>;
-            const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
-            const buzzes = (game.buzzes || []).slice(0, 5);
-            return (
-                <div className="min-h-screen text-white flex flex-col p-8">
-                   <div className="glass-panel rounded-3xl p-8 mb-6 flex justify-between items-center">
-                      <div><div className="text-xs text-slate-500 mb-2">Room</div><div className="text-8xl font-black font-mono text-yellow-400">{game.code}</div></div>
-                      <div className="text-[12rem] font-black font-mono">{game.timer}s</div>
-                      <div className="text-right"><div className="text-xs text-slate-500 mb-2">Players</div><div className="text-8xl font-black text-blue-400">{players.length}</div></div>
-                   </div>
-                   <div className="flex-1 flex gap-8">
-                      <div className="flex-1 glass-panel rounded-3xl p-8">
-                         <h2 className="text-2xl font-bold mb-6 text-pink-400 flex items-center gap-2"><Zap /> Live Buzzers</h2>
-                         <div className="space-y-4">
-                            {buzzes.map((b, i) => (
-                              <div key={i} className="glass-btn p-6 rounded-2xl flex justify-between items-center animate-in slide-in-from-left">
-                                <div className="flex items-center gap-6"><div className="bg-white text-black w-12 h-12 rounded-full flex items-center justify-center font-black text-2xl">{i+1}</div><div className="text-4xl font-bold">{b.playerName}</div></div>
-                                <div className="text-2xl font-mono text-slate-400">{i===0 ? "WINNER" : `+${b.timestamp - buzzes[0].timestamp}ms`}</div>
-                              </div>
-                            ))}
-                         </div>
-                      </div>
-                   </div>
-                </div>
-            );
-        };
-        return <ProjectorView />;
-      }
+      if (user && !mode) return <HostDashboard user={user} />;
+      if (mode === 'projector') return <ProjectorView gameCode={gameCode} />;
+      if (mode === 'player_active') return <PlayerView game={activeG} player={activeP} gameCode={gameCode} />;
 
-      if (mode === 'player_active') {
-        const PlayerComp = () => (
-            <div className="min-h-screen flex flex-col p-6 items-center justify-center">
-                <div className="glass-panel w-full max-w-sm p-6 rounded-3xl flex justify-between items-center absolute top-6">
-                    <div><div className="text-xl font-bold">{activePlayer?.name}</div><div className="text-xs text-slate-500">Score: {activePlayer?.score}</div></div>
-                    <div className="text-4xl font-mono font-bold text-blue-400">{activeGame?.timer}s</div>
-                </div>
-                <button onClick={async () => {
-                    const isMyB = (activeGame?.buzzes || []).find(b => b.playerId === activePlayer?.id);
-                    if (!activeGame?.buzzerOpen || isMyB) return;
-                    await updateDoc(getGameDocRef(gameCode), { buzzes: arrayUnion({ playerId: activePlayer?.id, playerName: activePlayer?.name, timestamp: Date.now() }) });
-                }} className={`w-72 h-72 rounded-full transition-all active:scale-90 flex flex-col items-center justify-center gap-2 border-4 ${activeGame?.buzzerOpen && !(activeGame?.buzzes || []).find(b => b.playerId === activePlayer?.id) ? 'bg-gradient-to-br from-rose-500 to-red-700 border-rose-400' : 'bg-slate-800 border-white/5 opacity-50'}`}>
-                    <Zap size={80} /><span className="font-black text-2xl">BUZZ</span>
-                </button>
-            </div>
-        );
-        return <PlayerComp />;
-      }
-
-      // LOGIN HOME SCREEN
       return (
         <div className="min-h-screen flex items-center justify-center p-6 text-white">
           <div className="max-w-md w-full text-center">
             <h1 className="text-5xl font-black mb-10 tracking-tighter">BuzzerBeater</h1>
             <div className="glass-panel p-8 rounded-[2.5rem] space-y-6 text-left border border-white/10">
                <div className="flex gap-2 p-1 bg-black/40 rounded-2xl">
-                 <button onClick={() => setMode(null)} className={`flex-1 py-3 text-xs font-bold rounded-xl ${!mode ? 'bg-white text-black' : 'text-slate-500'}`}>PLAY</button>
-                 <button onClick={() => setMode('projector_entry')} className={`flex-1 py-3 text-xs font-bold rounded-xl ${mode === 'projector_entry' ? 'bg-white text-black' : 'text-slate-500'}`}>PROJECT</button>
-                 <button onClick={() => setMode('host_auth')} className="flex-1 py-3 text-xs font-bold rounded-xl text-slate-500">HOST</button>
+                 <button onClick={() => setMode(null)} className={`flex-1 py-3 text-xs font-bold rounded-xl transition ${!mode ? 'bg-white text-black' : 'text-slate-500'}`}>PLAY</button>
+                 <button onClick={() => setMode('projector_entry')} className={`flex-1 py-3 text-xs font-bold rounded-xl transition ${mode === 'projector_entry' ? 'bg-white text-black' : 'text-slate-500'}`}>PROJECT</button>
+                 <button onClick={() => setMode('host_auth')} className="flex-1 py-3 text-xs font-bold rounded-xl text-slate-500 uppercase">HOST</button>
                </div>
                <div className="space-y-4">
                  <input value={gameCode} onChange={e => setGameCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-3xl font-mono" placeholder="ROOM CODE"/>
-                 {mode !== 'projector_entry' && <input value={playerPasscode} onChange={e => setPlayerPasscode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-3xl font-mono" placeholder="PASSCODE"/>}
-                 {error && <div className="text-red-400 text-xs text-center font-bold bg-red-500/10 p-3 rounded-xl">{error}</div>}
-                 <button onClick={mode === 'projector_entry' ? () => setMode('projector') : joinAsPlayer} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl">Enter</button>
+                 {mode !== 'projector_entry' && <input value={passcode} onChange={e => setPasscode(e.target.value.toUpperCase())} className="glass-input w-full rounded-2xl px-6 py-4 text-center text-3xl font-mono" placeholder="PASSCODE"/>}
+                 {err && <div className="text-red-400 text-xs text-center font-bold">{err}</div>}
+                 <button onClick={mode === 'projector_entry' ? () => setMode('projector') : joinAsPlayer} className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl transition active:scale-95">Enter</button>
                </div>
             </div>
           </div>
