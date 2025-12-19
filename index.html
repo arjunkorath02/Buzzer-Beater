@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BuzzerBeater</title>
   
-  <!-- App Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23f43f5e'/%3E%3Cpath d='M13 2L3 14h9v8l10-12h-9l1-8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
   <style>
@@ -118,7 +115,6 @@
 <body>
   <div class="liquid-bg"></div>
 
-  <!-- Initial Loading Screen -->
   <div id="loading-screen">
     <div class="spinner"></div>
     <p class="tracking-widest uppercase text-xs font-bold opacity-70">Initializing...</p>
@@ -126,22 +122,16 @@
 
   <div id="root"></div>
 
-  <!-- Main Application Script -->
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useMemo } from 'https://esm.sh/react@18.2.0';
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
-    // If running in sandbox preview, use provided config.
-    // If running in production (Netlify), use the hardcoded keys.
-    const isSandbox = typeof __firebase_config !== 'undefined';
-    
-    // REPLACE these keys with your own from Firebase Console for production
-    const prodConfig = {
+    const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
       authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
       projectId: "buzzer-beater-ae6f8",
@@ -150,22 +140,11 @@
       appId: "1:837054021400:web:1cf3959c05f2c2e43a286d"
     };
 
-    const firebaseConfig = isSandbox ? JSON.parse(__firebase_config) : prodConfig;
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : "buzzer-game-v1";
-
-    // Helper to get correct collection path based on environment
-    const getGameDocRef = (gameCode) => {
-        if (isSandbox) return doc(db, 'artifacts', appId, 'public', 'data', 'gameRooms', gameCode);
-        return doc(db, 'gameRooms', gameCode);
-    };
-
-    const getGameCollectionQuery = (constraints = []) => {
-        if (isSandbox) return query(collection(db, 'artifacts', appId, 'public', 'data', 'gameRooms'), ...constraints);
-        return query(collection(db, 'gameRooms'), ...constraints);
-    };
+    const appId = "buzzer-game-v1";
+    const GAMES_COLLECTION = 'gameRooms';
 
     // --- UTILS ---
     const generateCode = (length = 4) => {
@@ -206,25 +185,14 @@
       });
     };
 
-    // --- AUDIO SYSTEM (SINGLETON) ---
-    let audioCtx = null;
-
-    const getAudioCtx = () => {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    };
-
     // --- SOUND EFFECTS ---
     const playBuzzerSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
         
+        // Realistic Buzzer Synthesis
         const t = ctx.currentTime;
         const duration = 0.6;
         
@@ -253,9 +221,9 @@
 
     const playDingSound = () => {
       try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
@@ -268,68 +236,6 @@
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       } catch (e) { console.error("Audio error", e); }
-    };
-
-    // --- TIMER SOUNDS ---
-    const playTickSound = () => {
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.05);
-      } catch (e) {}
-    };
-
-    const playTimeUpSound = () => {
-      try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        
-        // Double Beep
-        [0, 0.2].forEach(start => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'square';
-            osc.frequency.value = 600;
-            gain.gain.setValueAtTime(0.2, ctx.currentTime + start);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + 0.15);
-            osc.start(ctx.currentTime + start);
-            osc.stop(ctx.currentTime + start + 0.15);
-        });
-      } catch (e) {}
-    };
-
-    // Hook to handle timer sounds
-    const useTimerSounds = (game) => {
-      const prevTimer = useRef(game?.timer);
-      
-      useEffect(() => {
-        if (!game) return;
-        const currentTimer = game.timer;
-        const previous = prevTimer.current;
-        
-        if (game.buzzerOpen && currentTimer <= 5 && currentTimer > 0 && currentTimer < previous) {
-          playTickSound();
-        }
-        
-        if (currentTimer === 0 && previous > 0) {
-          playTimeUpSound();
-        }
-        
-        prevTimer.current = currentTimer;
-      }, [game?.timer, game?.buzzerOpen]);
     };
 
     // --- COMPONENTS ---
@@ -358,8 +264,6 @@
 
       const handleAuth = async (e) => {
         e.preventDefault(); setError(''); setLoading(true);
-        // Ensure audio context is ready on first interaction
-        getAudioCtx();
         try {
           if (isSignUp) await createUserWithEmailAndPassword(auth, email, password);
           else await signInWithEmailAndPassword(auth, email, password);
@@ -417,7 +321,7 @@
       const prevBuzzCount = useRef(0);
 
       useEffect(() => {
-        const unsubscribe = onSnapshot(getGameDocRef(gameCode), (doc) => { 
+        const unsubscribe = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, gameCode), (doc) => { 
           if (doc.exists()) {
             const data = doc.data();
             setGame(data);
@@ -427,8 +331,6 @@
         });
         return () => unsubscribe();
       }, [gameCode]);
-      
-      useTimerSounds(game);
 
       if (!game) return <Loading msg="Connecting to Projector..." />;
 
@@ -534,7 +436,7 @@
       useEffect(() => {
         const handleCheatDetection = () => {
           if (game.focusModeEnabled && !player.locked) {
-            const gameRef = getGameDocRef(gameId);
+            const gameRef = doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, gameId);
             updateDoc(gameRef, { [`players.${playerId}.locked`]: true });
           }
         };
@@ -562,14 +464,13 @@
         playBuzzerSound();
         setBuzzed(true); setFeedback('Buzzing...');
         try {
-          const gameRef = getGameDocRef(gameId);
+          const gameRef = doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, gameId);
           await updateDoc(gameRef, { buzzes: arrayUnion({ playerId, playerName: player.name, team: player.team, timestamp: Date.now() }) });
         } catch (e) { setBuzzed(false); setFeedback('Failed'); }
       };
 
       const sortedPlayers = useMemo(() => Object.values(game.players || {}).sort((a, b) => b.score - a.score), [game.players]);
       const isBuzzerEnabled = game.buzzerOpen && game.timer > 0 && !buzzed;
-      useTimerSounds(game);
 
       if (player.locked && game.focusModeEnabled) {
         return (
@@ -681,10 +582,10 @@
 
       useEffect(() => {
         if (!user) return;
-        const q = getGameCollectionQuery([where('hostId', '==', user.uid)]); 
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION)); 
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const myGames = [];
-          snapshot.forEach(doc => { const data = doc.data(); myGames.push({ id: doc.id, ...data }); });
+          snapshot.forEach(doc => { const data = doc.data(); if (data.hostId === user.uid) myGames.push({ id: doc.id, ...data }); });
           setGames(myGames);
         });
         return () => unsubscribe();
@@ -692,7 +593,7 @@
 
       useEffect(() => {
         if (!activeGameId) return;
-        const unsubscribe = onSnapshot(getGameDocRef(activeGameId), (doc) => { 
+        const unsubscribe = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), (doc) => { 
           if (doc.exists()) {
             const data = doc.data();
             setGameData(data);
@@ -702,15 +603,13 @@
         });
        return () => unsubscribe();
       }, [activeGameId]);
-      
-      useTimerSounds(gameData);
 
       useEffect(() => {
         let interval = null;
         if (gameData?.buzzerOpen && gameData?.timer > 0) {
           interval = setInterval(() => {
             const newTime = gameData.timer - 1;
-            updateDoc(getGameDocRef(activeGameId), { timer: newTime, buzzerOpen: newTime > 0 });
+            updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { timer: newTime, buzzerOpen: newTime > 0 });
           }, 1000);
         }
         return () => { if (interval) clearInterval(interval); };
@@ -724,7 +623,7 @@
           rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }], status: 'lobby',
           currentQuestion: '', currentImage: null, focusModeEnabled: false
         };
-        await setDoc(getGameDocRef(code), newGame);
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, code), newGame);
         setActiveGameId(code); setViewState('lobby');
       };
 
@@ -733,53 +632,64 @@
         const initialTime = gameData.initialTimer || 30;
         const isDirty = gameData.buzzerOpen || (gameData.timer !== initialTime);
         if (isDirty) {
-           await updateDoc(getGameDocRef(activeGameId), { buzzerOpen: false, timer: initialTime, buzzes: [] });
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { buzzerOpen: false, timer: initialTime, buzzes: [] });
         } else {
-           getAudioCtx();
-           await updateDoc(getGameDocRef(activeGameId), { buzzerOpen: true });
+           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { buzzerOpen: true });
         }
       };
 
       const updateScore = async (pid, delta) => {
         const p = gameData.players[pid];
         const newScore = p.score + delta;
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}.score`]: newScore });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { players: { ...gameData.players, [pid]: { ...p, score: newScore } } });
       };
 
       const toggleLock = async (pid, currentStatus) => {
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}.locked`]: !currentStatus });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { [`players.${pid}.locked`]: !currentStatus });
       };
 
       const toggleFocusMode = async () => {
         const newStatus = !gameData.focusModeEnabled;
         const updates = { focusModeEnabled: newStatus };
+        
+        // AUTO UNLOCK ALL PLAYERS WHEN TURNING OFF MODE
         if (!newStatus && gameData.players) {
            Object.keys(gameData.players).forEach(pid => {
-             if (gameData.players[pid].locked) { updates[`players.${pid}.locked`] = false; }
+             if (gameData.players[pid].locked) {
+               updates[`players.${pid}.locked`] = false;
+             }
            });
         }
-        await updateDoc(getGameDocRef(activeGameId), updates);
+        
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), updates);
       };
 
-      const resetBuzzers = async () => updateDoc(getGameDocRef(activeGameId), { buzzes: [] });
+      const resetBuzzers = async () => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { buzzes: [] });
       const addNewRound = async () => {
         const nextId = (gameData.rounds || []).length + 1;
-        await updateDoc(getGameDocRef(activeGameId), { rounds: arrayUnion({ id: nextId, label: `Round ${nextId}`, timer: newRoundTime, qualifiers: newRoundQualifiers }) });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { rounds: arrayUnion({ id: nextId, label: `Round ${nextId}`, timer: newRoundTime, qualifiers: newRoundQualifiers }) });
       };
       
       const activateRound = async (r) => {
         const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
+        
+        // Tie-breaker logic: Anyone with a score >= the cutoff score qualifies.
         let qIds = [];
-        if (sorted.length <= r.qualifiers) { qIds = sorted.map(p => p.id); } 
-        else { const cutoffScore = sorted[r.qualifiers - 1].score; qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id); }
+        if (sorted.length <= r.qualifiers) {
+           qIds = sorted.map(p => p.id); 
+        } else {
+           const cutoffScore = sorted[r.qualifiers - 1].score;
+           qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id);
+        }
+
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
-        await updateDoc(getGameDocRef(activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
       };
 
       const saveRound = async () => {
         const updatedRounds = gameData.rounds.map(r => r.id === editingRoundId ? { ...r, timer: editRoundTime, qualifiers: editRoundQualifiers } : r);
-        await updateDoc(getGameDocRef(activeGameId), { rounds: updatedRounds });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { rounds: updatedRounds });
         setEditingRoundId(null);
       };
 
@@ -787,20 +697,20 @@
         if(!newPlayerName.trim()) return;
         const pid = crypto.randomUUID(); const pCode = generateCode(4);
         const newP = { id: pid, name: newPlayerName, team: selectedTeamForPlayer || 'Unassigned', code: pCode, score: 0, active: true, locked: false };
-        await updateDoc(getGameDocRef(activeGameId), { [`players.${pid}`]: newP });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { players: { ...gameData.players, [pid]: newP } });
         setNewPlayerName('');
       };
 
       const addTeam = async () => {
         if(!newTeamName.trim()) return;
-        await updateDoc(getGameDocRef(activeGameId), { teams: arrayUnion(newTeamName) });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { teams: arrayUnion(newTeamName) });
         setNewTeamName('');
       };
 
       const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (file) {
-          if (file.size > 5000000) { alert("Image is too large (Max 5MB)."); return; }
+          if (file.size > 5000000) { alert("Image is too large (Max 5MB for upload)."); return; }
           try {
             const compressedDataUrl = await compressImage(file);
             if (compressedDataUrl.length > 950000) { alert("Image is too complex even after compression."); return; }
@@ -810,14 +720,12 @@
       };
 
       const updateQuestion = async () => {
-        await updateDoc(getGameDocRef(activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
       };
       
       const clearQuestion = async () => {
-        try {
-          setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
-          await updateDoc(getGameDocRef(activeGameId), { currentQuestion: '', currentImage: deleteField() });
-        } catch (e) { alert("Failed to clear question. Check connection."); }
+        setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, activeGameId), { currentQuestion: '', currentImage: null });
       };
 
       if (viewState === 'list') {
@@ -857,7 +765,8 @@
             <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pr-1">
               
               <button onClick={toggleFocusMode} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 border transition-all ${gameData.focusModeEnabled ? 'bg-red-600/90 border-red-400 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'glass-panel text-slate-400 border-white/5 hover:bg-white/5'}`}>
-                {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />} <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
+                {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />}
+                <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
               </button>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
@@ -869,7 +778,7 @@
                 </div>
                 {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
                 <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionInput} onChange={(e) => setQuestionInput(e.target.value)} />
-                <div className="flex gap-2"><button type="button" onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button type="button" onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
+                <div className="flex gap-2"><button onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
               </div>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
@@ -941,7 +850,7 @@
     const GameWrapper = ({ gameCode, playerCode, onExit }) => {
       const [game, setGame] = useState(null); const [player, setPlayer] = useState(null);
       useEffect(() => {
-        const unsubscribe = onSnapshot(doc(db, GAMES_COLLECTION, gameCode), (docSnap) => {
+        const unsubscribe = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION, gameCode), (docSnap) => {
           if (docSnap.exists()) { const gData = docSnap.data(); setGame(gData); const pData = Object.values(gData.players || {}).find(p => p.code === playerCode); if (pData) setPlayer(pData); else onExit(); } else onExit();
         });
         return () => unsubscribe();
@@ -974,7 +883,7 @@
         if (!user) await signInAnonymously(auth).catch(e => console.error(e));
         try {
           const gCode = gameCode.trim().toUpperCase(); const pCode = playerCode.trim().toUpperCase();
-          const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
+          const snap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION), where('code', '==', gCode)));
           let valid = false;
           snap.forEach(d => { if(d.id === gCode) { const p = Object.values(d.data().players || {}).find(pl => pl.code === pCode); if(p) valid = true; }});
           if(valid) setMode('player_active'); else setPlayerError('Invalid Game Code or Player Code');
@@ -986,7 +895,7 @@
         if (!gameCode) { setPlayerError('Please enter game code.'); return; }
         try {
           const gCode = gameCode.trim().toUpperCase();
-          const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
+          const snap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', GAMES_COLLECTION), where('code', '==', gCode)));
           if(!snap.empty) setMode('projector'); else setPlayerError('Game room not found.');
         } catch (e) { console.error(e); setPlayerError('Connection error.'); }
       };
