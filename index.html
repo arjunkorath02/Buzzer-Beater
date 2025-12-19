@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BuzzerBeater | Stability Fix</title>
+  <title>BuzzerBeater | Fixed</title>
+  
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23f43f5e'/%3E%3Cpath d='M13 2L3 14h9v8l10-12h-9l1-8z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
     :root { --glass: rgba(15, 15, 20, 0.95); --border: rgba(255, 255, 255, 0.1); }
@@ -26,8 +30,9 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp, collection, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { Trophy, Zap, Plus, Minus, ChevronRight, UserPlus, Trash2, LogOut, List, Settings, Download, Search, AlertCircle } from 'https://esm.sh/lucide-react@0.294.0';
+    import { Trophy, Zap, Plus, Minus, ChevronRight, UserPlus, Trash2, LogOut, List, Settings, Download, Search, AlertCircle, X } from 'https://esm.sh/lucide-react@0.294.0';
 
+    // --- CONFIGURATION ---
     const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
       authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
@@ -44,26 +49,7 @@
     const getRef = (code) => doc(db, 'gameRooms', code.toUpperCase());
     const genCode = (n) => Array.from({length:n}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'.charAt(Math.floor(Math.random()*32))).join('');
 
-    // --- ERROR BOUNDARY (Prevents Blank Screens) ---
-    class ErrorBoundary extends React.Component {
-      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-      static getDerivedStateFromError(error) { return { hasError: true, error }; }
-      render() {
-        if (this.state.hasError) {
-          return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-black text-center">
-              <AlertCircle size={64} className="text-red-500 mb-4"/>
-              <h1 className="text-2xl font-black text-white">Something went wrong.</h1>
-              <pre className="text-xs text-red-400 mt-4 bg-white/10 p-4 rounded-xl">{this.state.error.toString()}</pre>
-              <button onClick={() => window.location.reload()} className="mt-6 bg-blue-600 px-6 py-2 rounded-full font-bold">Reload App</button>
-            </div>
-          );
-        }
-        return this.props.children; 
-      }
-    }
-
-    // --- AUDIO ---
+    // --- AUDIO HELPER ---
     const playDing = () => {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -76,7 +62,7 @@
       } catch(e){}
     };
 
-    // --- HOST DASHBOARD ---
+    // --- COMPONENT: HOST DASHBOARD ---
     const HostDashboard = ({ user }) => {
       const [view, setView] = useState('list');
       const [games, setGames] = useState([]);
@@ -84,6 +70,8 @@
       const [game, setGame] = useState(null);
       const [pName, setPName] = useState('');
       const [search, setSearch] = useState('');
+      const [rTime, setRTime] = useState(30);
+      const [rQual, setRQual] = useState(10);
       const prevB = useRef(0);
 
       useEffect(() => {
@@ -106,7 +94,6 @@
         });
       }, [activeId]);
 
-      // Timer Logic
       useEffect(() => {
         let timer;
         if (game?.buzzerOpen && game?.timer > 0) {
@@ -132,7 +119,7 @@
         <div className="p-10 max-w-4xl mx-auto animate-in fade-in duration-500">
           <div className="flex justify-between items-center mb-10">
             <h1 className="text-3xl font-black italic">Host Panel</h1>
-            <button onClick={() => signOut(auth)} className="glass px-6 py-2 rounded-full text-xs font-bold text-red-400 uppercase tracking-widest">Logout</button>
+            <button onClick={() => signOut(auth)} className="glass px-6 py-2 rounded-full text-xs font-bold text-red-400 uppercase">Logout</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div onClick={async () => {
@@ -152,12 +139,12 @@
         </div>
       );
 
-      if (!game) return <div className="p-20 text-center font-black text-2xl">Loading Game Data...</div>;
+      if (!game) return <div className="p-20 text-center font-black text-2xl">Loading...</div>;
 
       return (
         <div className="min-h-screen flex flex-col animate-in fade-in">
           <div className="glass p-4 flex justify-between items-center sticky top-0 z-20">
-            <div className="flex items-center gap-4"><button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full transition"><ChevronRight className="rotate-180" /></button><div className="font-mono font-bold text-yellow-500 text-2xl">{game.code}</div></div>
+            <div className="flex items-center gap-4"><button onClick={() => setView('list')} className="p-2 hover:bg-white/10 rounded-full"><ChevronRight className="rotate-180" /></button><div className="font-mono font-bold text-yellow-500 text-2xl">{game.code}</div></div>
             <div className="flex items-center gap-6">
                 <div className="text-4xl font-mono font-bold">{game.timer}s</div>
                 <button onClick={() => updateDoc(getRef(activeId), { buzzerOpen: game.timer === 0 ? false : !game.buzzerOpen, buzzes: (game.timer === 0 || !game.buzzerOpen) ? [] : game.buzzes, timer: game.timer === 0 ? game.initialTimer : game.timer })} className={`px-10 py-3 rounded-2xl font-black uppercase text-xs transition ${game.timer === 0 ? 'bg-blue-600' : (game.buzzerOpen ? 'bg-red-600' : 'bg-emerald-600')}`}>{game.timer === 0 ? 'Reset' : (game.buzzerOpen ? 'Stop' : 'Start')}</button>
@@ -178,9 +165,17 @@
                 </div>
                 <div className="glass p-6 rounded-3xl">
                     <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Rounds</h3>
-                    <div className="space-y-2">{(game.rounds || []).map((r,idx) => (
+                    <div className="space-y-3 p-3 bg-black/20 rounded-2xl mb-4">
+                      <div className="flex justify-between text-xs"><span>Seconds</span><input type="number" value={rTime} onChange={e=>setRTime(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
+                      <div className="flex justify-between text-xs"><span>Qualifiers</span><input type="number" value={rQual} onChange={e=>setRQual(e.target.value)} className="w-16 glass-input text-right px-2 rounded" /></div>
+                      <button onClick={() => updateDoc(getRef(activeId), { rounds: arrayUnion({ id: Date.now(), time: parseInt(rTime), qualifiers: parseInt(rQual) }) })} className="w-full bg-white/10 py-2 rounded-xl text-[10px] font-bold">Add Round</button>
+                    </div>
+                    <div className="space-y-2 overflow-y-auto max-h-[200px]">{(game.rounds || []).map((r,idx) => (
                         <div key={idx} className="p-3 rounded-xl bg-white/5 border border-white/5 flex flex-col gap-2">
-                            <span className="text-[10px] font-bold">R{idx+1}: {r.time}s • Top {r.qualifiers}</span>
+                            <div className="flex justify-between items-center text-[10px] font-bold"><span>R{idx+1}: {r.time}s • Top {r.qualifiers}</span><button onClick={async () => {
+                                const filtered = game.rounds.filter(rnd => rnd.id !== r.id);
+                                await updateDoc(getRef(activeId), { rounds: filtered });
+                            }} className="text-red-500"><Trash2 size={12}/></button></div>
                             <button onClick={async () => {
                                 const players = Object.values(game.players || {}).sort((a,b) => b.score - a.score);
                                 const updates = {};
@@ -189,7 +184,6 @@
                             }} className="w-full bg-blue-600/40 py-2 rounded-lg text-[10px] uppercase font-black">Activate</button>
                         </div>
                     ))}</div>
-                    <button onClick={() => updateDoc(getRef(activeId), { rounds: arrayUnion({ id: Date.now(), time: 30, qualifiers: 10 }) })} className="w-full mt-4 bg-white/5 py-2 rounded-xl text-[10px] font-bold">+ Round Template</button>
                 </div>
             </div>
             <div className="lg:col-span-2 glass rounded-[2.5rem] flex flex-col overflow-hidden h-[700px]">
@@ -230,7 +224,50 @@
       );
     };
 
-    // --- PLAYER VIEW ---
+    // --- COMPONENT: PROJECTOR ---
+    const ProjectorView = ({ code }) => {
+        const [g, setG] = useState(null);
+        useEffect(() => onSnapshot(getRef(code), (d) => setG(d.data())), [code]);
+        if (!g) return <div className="p-20 text-center font-black text-4xl italic opacity-20">CONNECTING...</div>;
+        const bz = (g.buzzes || []).slice(0, 5);
+        const ld = Object.values(g.players || {}).sort((a,b)=>b.score-a.score).slice(0, 10);
+        return (
+            <div className="min-h-screen flex flex-col p-10 overflow-hidden animate-in zoom-in duration-500">
+                <div className="flex justify-between items-center mb-10 bg-black/40 p-8 rounded-[3rem] border border-white/5">
+                    <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest opacity-50">Arena Code</span><span className="text-4xl font-mono font-black text-yellow-400">{g.code}</span></div>
+                    <div className={`text-[12rem] font-black font-mono leading-none ${g.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{g.timer}s</div>
+                    <div className="flex flex-col text-right"><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest opacity-50">Status</span><span className="text-4xl font-black text-blue-400">ROUND {g.currentRound}</span></div>
+                </div>
+                <div className="flex-1 flex gap-12 min-h-0">
+                    <div className="flex-[2.5] glass rounded-[4rem] p-16 overflow-hidden flex flex-col border-white/10">
+                        <h2 className="text-5xl font-black mb-12 text-pink-500 uppercase italic tracking-widest flex items-center gap-6"><Zap size={48} className="fill-pink-500"/> Priority Queue</h2>
+                        <div className="space-y-6">
+                            {bz.map((b, i) => (
+                                <div key={i} className="glass p-12 rounded-[4rem] flex justify-between items-center animate-in slide-in-from-left duration-500">
+                                    <div className="flex items-center gap-16 font-black"><div className="bg-white text-black w-28 h-28 rounded-full flex items-center justify-center text-7xl shadow-2xl">{i+1}</div><div className="text-[6rem] tracking-tighter">{b.playerName}</div></div>
+                                    <div className="text-6xl font-mono text-slate-500">{i===0 ? <span className="text-emerald-400 uppercase font-black italic tracking-widest">King</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
+                                </div>
+                            ))}
+                            {bz.length === 0 && <div className="h-full flex items-center justify-center text-slate-800 text-9xl font-black italic opacity-20">LOCKED</div>}
+                        </div>
+                    </div>
+                    <div className="flex-[1] glass rounded-[4rem] p-12 flex flex-col border-white/10">
+                        <h2 className="text-3xl font-black mb-12 text-blue-400 uppercase italic tracking-widest flex items-center gap-4"><Trophy size={40} className="fill-blue-500"/> Standings</h2>
+                        <div className="space-y-4 overflow-y-auto flex-1">
+                            {ld.map((p, i) => (
+                                <div key={p.id} className={`flex justify-between items-center p-8 rounded-[3rem] bg-white/5 border border-white/5 ${!p.isActive ? 'opacity-10 grayscale' : 'shadow-2xl'}`}>
+                                    <div className="flex items-center gap-6 font-black"><span className="text-sm font-mono text-slate-500">#{i+1}</span><span className="text-3xl tracking-tight">{p.name}</span></div>
+                                    <span className="text-5xl font-mono font-black text-yellow-400">{p.score}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // --- COMPONENT: PLAYER ---
     const PlayerView = ({ game, player, code }) => {
       const [showLB, setShowLB] = useState(false);
       if (!game || !player) return <div className="p-10 text-center font-bold animate-pulse">Syncing...</div>;
@@ -278,54 +315,11 @@
       );
     };
 
-    // --- PROJECTOR VIEW ---
-    const ProjectorView = ({ code }) => {
-        const [g, setG] = useState(null);
-        useEffect(() => onSnapshot(getRef(code), (d) => setG(d.data())), [code]);
-        if (!g) return <div className="p-20 text-center font-black text-4xl italic opacity-20">INITIALIZING PROJECTOR...</div>;
-        const bz = (g.buzzes || []).slice(0, 5);
-        const ld = Object.values(g.players || {}).sort((a,b)=>b.score-a.score).slice(0, 10);
-        return (
-            <div className="min-h-screen flex flex-col p-10 overflow-hidden animate-in zoom-in duration-500">
-                <div className="flex justify-between items-center mb-10 bg-black/40 p-8 rounded-[3rem] border border-white/5">
-                    <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest opacity-50">Arena Code</span><span className="text-4xl font-mono font-black text-yellow-400">{g.code}</span></div>
-                    <div className={`text-[12rem] font-black font-mono leading-none ${g.timer <= 5 ? 'text-red-500 animate-pulse' : 'text-white'}`}>{g.timer}s</div>
-                    <div className="flex flex-col text-right"><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest opacity-50">Status</span><span className="text-4xl font-black text-blue-400">ROUND {g.currentRound}</span></div>
-                </div>
-                <div className="flex-1 flex gap-12 min-h-0">
-                    <div className="flex-[2.5] glass rounded-[4rem] p-16 overflow-hidden flex flex-col border-white/10">
-                        <h2 className="text-5xl font-black mb-12 text-pink-500 uppercase italic tracking-widest flex items-center gap-6"><Zap size={48} className="fill-pink-500"/> Priority Queue</h2>
-                        <div className="space-y-6">
-                            {bz.map((b, i) => (
-                                <div key={i} className="glass p-12 rounded-[4rem] flex justify-between items-center animate-in slide-in-from-left duration-500">
-                                    <div className="flex items-center gap-16 font-black"><div className="bg-white text-black w-28 h-28 rounded-full flex items-center justify-center text-7xl shadow-2xl">{i+1}</div><div className="text-[6rem] tracking-tighter">{b.playerName}</div></div>
-                                    <div className="text-6xl font-mono text-slate-500">{i===0 ? <span className="text-emerald-400 uppercase font-black italic tracking-widest">King</span> : `+${b.timestamp - bz[0].timestamp}ms`}</div>
-                                </div>
-                            ))}
-                            {bz.length === 0 && <div className="h-full flex items-center justify-center text-slate-800 text-9xl font-black italic opacity-20">LOCKED</div>}
-                        </div>
-                    </div>
-                    <div className="flex-[1] glass rounded-[4rem] p-12 flex flex-col border-white/10">
-                        <h2 className="text-3xl font-black mb-12 text-blue-400 uppercase italic tracking-widest flex items-center gap-4"><Trophy size={40} className="fill-blue-500"/> Standings</h2>
-                        <div className="space-y-4 overflow-y-auto flex-1">
-                            {ld.map((p, i) => (
-                                <div key={p.id} className={`flex justify-between items-center p-8 rounded-[3rem] bg-white/5 border border-white/5 ${!p.isActive ? 'opacity-10 grayscale' : 'shadow-2xl'}`}>
-                                    <div className="flex items-center gap-6 font-black"><span className="text-sm font-mono text-slate-500">#{i+1}</span><span className="text-3xl tracking-tight">{p.name}</span></div>
-                                    <span className="text-5xl font-mono font-black text-yellow-400">{p.score}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // --- ROUTER ---
+    // --- MAIN CONTROLLER ---
     function BuzzerApp() {
       const [user, setUser] = useState(null);
-      const [route, setRoute] = useState('LOADING'); // LOADING, LANDING, LOGIN, DASHBOARD, PLAYER, PROJECTOR
-      const [gCode, setGCode] = useState('');
+      const [view, setView] = useState('loading'); // loading, landing, auth, projector, player
+      const [code, setCode] = useState('');
       const [pass, setPass] = useState('');
       const [activeP, setActiveP] = useState(null);
       const [activeG, setActiveG] = useState(null);
@@ -333,88 +327,83 @@
       useEffect(() => {
         return onAuthStateChanged(auth, u => {
           setUser(u);
-          if (route !== 'PLAYER' && route !== 'PROJECTOR') {
-            setRoute(u ? 'DASHBOARD' : 'LANDING');
+          if (view !== 'projector' && view !== 'player') {
+            setView(u ? 'host' : 'landing');
           }
         });
-      }, [route]); // Added route dependency to ensure it re-evaluates
+      }, [view]);
 
-      const joinAsPlayer = async () => {
-        const tc = gCode.trim().toUpperCase();
-        const tp = pass.trim().toUpperCase();
-        if(!tc || !tp) return alert("Fill all fields");
+      const handleJoin = async () => {
+        const c = code.trim().toUpperCase();
+        const p = pass.trim().toUpperCase();
+        if(!c || !p) return alert("Fill all fields");
         try {
-            const d = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', tc)));
-            if(d.empty) return alert("Room not found");
-            const gd = d.docs[0].data();
-            const p = Object.values(gd.players||{}).find(pl=>pl.code===tp);
-            if(!p) return alert("Invalid Passcode");
-            setRoute('PLAYER');
-            onSnapshot(getRef(tc), (snap) => {
-                const data = snap.data();
+            const snap = await getDocs(query(collection(db, 'gameRooms'), where('code', '==', c)));
+            if(snap.empty) return alert("Room not found");
+            const gd = snap.docs[0].data();
+            const player = Object.values(gd.players||{}).find(pl=>pl.code===p);
+            if(!player) return alert("Invalid Passcode");
+            setView('player');
+            onSnapshot(getRef(c), (s) => {
+                const data = s.data();
                 setActiveG(data);
-                if(data.players[p.id]) setActiveP(data.players[p.id]);
+                if(data.players[player.id]) setActiveP(data.players[player.id]);
             });
         } catch(e) { alert("Error joining"); }
       };
 
-      if (route === 'LOADING') return <div className="min-h-screen bg-black flex items-center justify-center"><div className="spinner"></div></div>;
-      
-      // Strict Route Logic
-      switch (route) {
-        case 'DASHBOARD': return user ? <HostDashboard user={user} /> : <div className="min-h-screen bg-black text-white p-20 text-center">Session Expired. <button onClick={()=>setRoute('LOGIN')} className="underline">Login</button></div>;
-        case 'LOGIN': return (
+      if (view === 'loading') return <div className="min-h-screen bg-black flex items-center justify-center"><div className="spinner"></div></div>;
+      if (view === 'host' && user) return <HostDashboard user={user} />;
+      if (view === 'projector') return <ProjectorView code={code} />;
+      if (view === 'player') return <PlayerView game={activeG} player={activeP} code={code} />;
+
+      // LANDING & AUTH
+      if (view === 'auth') {
+        const [isLogin, setIsLogin] = useState(true);
+        const [em, setEm] = useState('');
+        const [pw, setPw] = useState('');
+        const handleAuth = async (e) => {
+            e.preventDefault();
+            try {
+                if (isLogin) await signInWithEmailAndPassword(auth, em, pw);
+                else await createUserWithEmailAndPassword(auth, em, pw);
+            } catch(e) { alert(e.message); }
+        };
+        return (
             <div className="min-h-screen flex items-center justify-center p-6 bg-black text-white animate-in zoom-in">
                 <div className="max-w-md w-full glass p-12 rounded-[3rem]">
-                    <h2 className="text-3xl font-black mb-8 text-center">Host Access</h2>
-                    <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        const email = e.target.email.value;
-                        const pwd = e.target.password.value;
-                        try { await signInWithEmailAndPassword(auth, email, pwd); } 
-                        catch(e) { try { await createUserWithEmailAndPassword(auth, email, pwd); } catch(e2) { alert(e2.message); } }
-                    }} className="space-y-6">
-                        <input name="email" type="email" placeholder="Email" className="glass-input w-full px-8 py-5 rounded-2xl" />
-                        <input name="password" type="password" placeholder="Password" className="glass-input w-full px-8 py-5 rounded-2xl" />
+                    <h2 className="text-3xl font-black mb-8 text-center">{isLogin ? 'Host Login' : 'Host Signup'}</h2>
+                    <form onSubmit={handleAuth} className="space-y-6">
+                        <input type="email" placeholder="Email" className="glass-input w-full px-8 py-5 rounded-2xl" onChange={e=>setEm(e.target.value)}/>
+                        <input type="password" placeholder="Password" className="glass-input w-full px-8 py-5 rounded-2xl" onChange={e=>setPw(e.target.value)}/>
                         <button className="w-full bg-blue-600 py-5 rounded-2xl font-black uppercase">Enter</button>
                     </form>
-                    <button onClick={()=>setRoute('LANDING')} className="w-full mt-6 text-center text-xs text-slate-500 uppercase font-black">Cancel</button>
+                    <button onClick={()=>setIsLogin(!isLogin)} className="w-full mt-6 text-xs text-slate-500 uppercase">{isLogin ? "Create Account" : "Back to Login"}</button>
+                    <button onClick={()=>setView('landing')} className="w-full mt-4 text-[10px] text-slate-700 uppercase font-black">Cancel</button>
                 </div>
             </div>
         );
-        case 'PLAYER': return <PlayerView game={activeG} player={activeP} code={gCode} />;
-        case 'PROJECTOR': return <ProjectorView code={gCode} />;
-        default: return (
-            <div className="min-h-screen flex items-center justify-center p-6 text-white bg-black"><div className="max-w-md w-full text-center animate-in fade-in">
-                <h1 className="text-[5rem] leading-none font-black mb-20 italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-400 to-slate-800">BuzzerBeater</h1>
-                <div className="glass p-12 rounded-[4rem] space-y-10 text-left border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.6)]">
-                   <div className="flex gap-2 p-2 bg-black/50 rounded-[2.5rem]">
-                     <button onClick={() => setRoute('LANDING')} className="flex-1 py-4 text-[10px] font-black rounded-[2rem] bg-white text-black shadow-xl uppercase tracking-widest">Arena</button>
-                     <button onClick={() => { setRoute('PROJECTOR'); }} className="flex-1 py-4 text-[10px] font-black rounded-[2rem] text-slate-500 uppercase tracking-widest hover:text-white transition">Screen</button>
-                     <button onClick={() => setRoute('LOGIN')} className="flex-1 py-4 text-[10px] font-black rounded-[2rem] text-slate-500 uppercase tracking-widest hover:text-white transition">Host</button>
-                   </div>
-                   <div className="space-y-8">
-                     <input value={gCode} onChange={e => setGCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-7 text-center text-5xl font-mono tracking-widest outline-none" placeholder="ROOM"/>
-                     <input value={pass} onChange={e => setPass(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-7 text-center text-5xl font-mono tracking-widest outline-none" placeholder="PASS"/>
-                     <button onClick={joinAsPlayer} className="w-full bg-blue-600 py-8 rounded-[2rem] font-black uppercase tracking-[0.5em] text-lg shadow-[0_20px_50px_rgba(37,99,235,0.4)] transition active:scale-95 hover:bg-blue-500">Enter Arena</button>
-                   </div>
-                </div>
-            </div></div>
-        );
       }
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 text-white"><div className="max-w-md w-full text-center animate-in fade-in">
+            <h1 className="text-[5rem] leading-none font-black mb-20 italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-400 to-slate-800">BuzzerBeater</h1>
+            <div className="glass p-12 rounded-[4rem] space-y-10 text-left border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.6)]">
+               <div className="flex gap-2 p-2 bg-black/50 rounded-[2.5rem]">
+                 <button onClick={() => setView('landing')} className={`flex-1 py-4 text-[10px] font-black rounded-[2rem] transition uppercase tracking-widest ${view==='landing' ? 'bg-white text-black shadow-xl' : 'text-slate-500'}`}>Arena</button>
+                 <button onClick={() => setView('projector_entry')} className={`flex-1 py-4 text-[10px] font-black rounded-[2rem] transition uppercase tracking-widest ${view==='projector_entry' ? 'bg-white text-black shadow-xl' : 'text-slate-500'}`}>Screen</button>
+                 <button onClick={() => setView('auth')} className="flex-1 py-4 text-[10px] font-black rounded-[2rem] text-slate-500 uppercase tracking-widest hover:text-white transition">Host</button>
+               </div>
+               <div className="space-y-8">
+                 <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-7 text-center text-5xl font-mono tracking-widest outline-none" placeholder="ROOM"/>
+                 {view !== 'projector_entry' && <input value={pass} onChange={e => setPass(e.target.value.toUpperCase())} className="glass-input w-full rounded-[2rem] px-8 py-7 text-center text-5xl font-mono tracking-widest outline-none" placeholder="PASS"/>}
+                 <button onClick={view === 'projector_entry' ? () => setView('projector') : handleJoin} className="w-full bg-blue-600 py-8 rounded-[2rem] font-black uppercase tracking-[0.5em] text-lg shadow-[0_20px_50px_rgba(37,99,235,0.4)] transition active:scale-95 hover:bg-blue-500">Enter Arena</button>
+               </div>
+            </div>
+        </div></div>
+      );
     }
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(ErrorBoundary, null, React.createElement(BuzzerApp)));
-    
-    // Fallback Error Boundary Class
-    class ErrorBoundary extends React.Component {
-      constructor(props) { super(props); this.state = { hasError: false }; }
-      static getDerivedStateFromError(error) { return { hasError: true }; }
-      render() {
-        if (this.state.hasError) return <div className="text-white p-10 text-center"><h1>CRITICAL ERROR</h1><button onClick={()=>window.location.reload()} className="underline">Reload</button></div>;
-        return this.props.children;
-      }
-    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<BuzzerApp />);
   </script>
 </body>
 </html>
