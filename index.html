@@ -735,15 +735,9 @@
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { teams: arrayUnion(newTeamName) });
         setNewTeamName('');
       };
-
-      const handleImageUpload = async (e) => {
+const handleSingleImageUpload = async (e) => {
   const file = e.target.files[0];
   if (!file || !activeGameId) return;
-
-  if (file.size > 5_000_000) {
-    alert("Image too large (max 5MB)");
-    return;
-  }
 
   try {
     const imgRef = ref(
@@ -754,12 +748,22 @@
     await uploadBytes(imgRef, file);
     const url = await getDownloadURL(imgRef);
 
-    // ✅ store FINAL URL, not base64
-    setQuestionImage(url);
+    const q = {
+      id: crypto.randomUUID(),
+      text: '',
+      image: url
+    };
+
+    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+      questions: arrayUnion(q)
+    });
+
   } catch (err) {
-    console.error("Upload failed", err);
+    console.error(err);
     alert("Image upload failed");
   }
+
+  if (fileInputRef.current) fileInputRef.current.value = '';
 };
 
 
@@ -767,33 +771,32 @@
   const files = Array.from(e.target.files || []);
   if (!files.length || !activeGameId) return;
 
+  const newQuestions = [];
+
   for (const file of files) {
-    try {
-      const imgRef = ref(
-        storage,
-        `games/${activeGameId}/questions/${Date.now()}-${file.name}`
-      );
+    const imgRef = ref(
+      storage,
+      `games/${activeGameId}/questions/${Date.now()}-${file.name}`
+    );
 
-      await uploadBytes(imgRef, file);
-      const url = await getDownloadURL(imgRef);
+    await uploadBytes(imgRef, file);
+    const url = await getDownloadURL(imgRef);
 
-      const q = {
-        id: Date.now() + Math.random(),
-        text: '',
-        image: url
-      };
-
-      await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-        questions: arrayUnion(q)
-      });
-
-    } catch (err) {
-      console.error('Bulk upload failed:', err);
-    }
+    newQuestions.push({
+      id: crypto.randomUUID(),
+      text: '',
+      image: url
+    });
   }
+
+  // ✅ ONE Firestore write (no race condition)
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: [...(gameData.questions || []), ...newQuestions]
+  });
 
   if (fileInputRef.current) fileInputRef.current.value = '';
 };
+
 
 
       const updateQuestion = async () => {
@@ -952,11 +955,37 @@ const clearDeck = async () => {
                   <input
   type="file"
   accept="image/*"
-  multiple
   ref={fileInputRef}
-  onChange={handleBulkImageUpload}
-  className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 transition cursor-pointer"
+  onChange={handleSingleImageUpload}
+  className="hidden"
+  id="singleImage"
 />
+
+<input
+  type="file"
+  accept="image/*"
+  multiple
+  onChange={handleBulkImageUpload}
+  className="hidden"
+  id="bulkImage"
+/>
+
+<div className="flex gap-2">
+  <label
+    htmlFor="singleImage"
+    className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-xs font-bold"
+  >
+    + Image
+  </label>
+
+  <label
+    htmlFor="bulkImage"
+    className="cursor-pointer bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded-lg text-xs font-bold"
+  >
+    + Bulk
+  </label>
+</div>
+
 
                   {questionImage && <button onClick={() => { setQuestionImage(null); fileInputRef.current.value = ""; }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>}
                 </div>
@@ -1305,6 +1334,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
