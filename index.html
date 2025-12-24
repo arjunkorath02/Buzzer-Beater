@@ -1080,55 +1080,88 @@ const clearDeck = async () => {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-white/5 text-slate-400 text-[10px] uppercase tracking-widest sticky top-0 backdrop-blur-md z-10"><tr><th className="p-4 font-medium">Player / Code</th><th className="p-4 font-medium">Team</th><th className="p-4 text-center font-medium">Status</th><th className="p-4 text-right font-medium">Score</th><th className="p-4 text-right font-medium">Action</th></tr></thead>
                   <tbody className="divide-y divide-white/5">
-                    {playerList.sort((a,b) => b.score - a.score).map(player => (
-                      <tr key={player.id} className={`hover:bg-white/5 transition group ${player.locked ? 'bg-red-500/10' : ''}`}>
-                        <td className="p-4"><div className="font-bold text-sm text-white flex items-center gap-2">{player.locked && <Lock size={12} className="text-red-400"/>}{player.name}</div><div className="text-[10px] font-mono text-yellow-500 bg-white/5 inline-block px-1.5 rounded mt-1 select-all tracking-wide">{player.code}</div></td>
-                        <td className="p-4 text-xs text-slate-400 font-medium">{player.team}</td>
-                        <td className="p-4 text-center">
-                          <div className={`w-2 h-2 rounded-full mx-auto ${player.active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500 opacity-30'}`} />
-                          {player.locked && <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">LOCKED</div>}
-                        </td>
-                        <td className="p-4 text-right font-mono text-lg font-bold">{player.score}</td>
-                        <td className="p-4 text-right space-y-2">
+  {playerList
+    .sort((a, b) => b.score - a.score)
+    .map((player) => (
+      <tr
+        key={player.id}
+        className={`hover:bg-white/5 transition group ${
+          player.locked ? 'bg-red-500/10' : ''
+        }`}
+      >
+        <td className="p-4">
+          <div className="font-bold text-sm text-white flex items-center gap-2">
+            {player.locked && <Lock size={12} className="text-red-400" />}
+            {player.name}
+          </div>
+          <div className="text-[10px] font-mono text-yellow-500 bg-white/5 inline-block px-1.5 rounded mt-1 select-all tracking-wide">
+            {player.code}
+          </div>
+        </td>
 
-  {/* SCORE CONTROLS */}
-  <div className="flex justify-end gap-2">
-    <button
-      onClick={() => updateScore(player.id, -minusScore)}
-      className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
-    >
-      <Minus size={12} />
-    </button>
+        <td className="p-4 text-xs text-slate-400 font-medium">
+          {player.team}
+        </td>
 
-    <button
-      onClick={() => updateScore(player.id, plusScore)}
-      className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
-    >
-      <Plus size={12} />
-    </button>
-  </div>
+        <td className="p-4 text-center">
+          <div
+            className={`w-2 h-2 rounded-full mx-auto ${
+              player.active
+                ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                : 'bg-red-500 opacity-30'
+            }`}
+          />
+          {player.locked && (
+            <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">
+              LOCKED
+            </div>
+          )}
+        </td>
 
-  {/* DELETE PLAYER */}
-  <button
-    onClick={() => deletePlayer(player.id)}
-    className="w-full text-[9px] bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 font-bold py-1 rounded border border-red-500/30 uppercase tracking-wider"
-  >
-    DELETE
-  </button>
+        <td className="p-4 text-right font-mono text-lg font-bold">
+          {player.score}
+        </td>
 
-  {/* UNLOCK PLAYER */}
-  {player.locked && (
-    <button
-      onClick={() => toggleLock(player.id, player.locked)}
-      className="w-full text-[9px] bg-yellow-500/20 hover:bg-yellow-500 hover:text-black text-yellow-300 font-bold py-1 rounded border border-yellow-500/30 uppercase tracking-wider"
-    >
-      UNLOCK
-    </button>
-  )}
+        <td className="p-4 text-right space-y-2">
+          {/* SCORE CONTROLS */}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => updateScore(player.id, -minusScore)}
+              className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
+            >
+              <Minus size={12} />
+            </button>
 
-</td>
-                    ))}
-                  </tbody>
+            <button
+              onClick={() => updateScore(player.id, plusScore)}
+              className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+
+          {/* DELETE PLAYER */}
+          <button
+            onClick={() => deletePlayer(player.id)}
+            className="w-full text-[9px] bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 font-bold py-1 rounded border border-red-500/30 uppercase tracking-wider"
+          >
+            DELETE
+          </button>
+
+          {/* UNLOCK PLAYER */}
+          {player.locked && (
+            <button
+              onClick={() => toggleLock(player.id, player.locked)}
+              className="w-full text-[9px] bg-yellow-500/20 hover:bg-yellow-500 hover:text-black text-yellow-300 font-bold py-1 rounded border border-yellow-500/30 uppercase tracking-wider"
+            >
+              UNLOCK
+            </button>
+          )}
+        </td>
+      </tr>
+    ))}
+</tbody>
+
                 </table>
               </div>
             </div>
@@ -1237,6 +1270,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
