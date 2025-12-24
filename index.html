@@ -576,7 +576,7 @@
       const [editRoundTime, setEditRoundTime] = useState(30);
       const [editRoundQualifiers, setEditRoundQualifiers] = useState(10);
       const [questionInput, setQuestionInput] = useState('');
-      const [questionImage, setQuestionImage] = useState(null);
+      const [questionDeckText, setQuestionDeckText] = useState('');
       const [searchQuery, setSearchQuery] = useState('');
       const fileInputRef = useRef(null);
       const prevBuzzCountHost = useRef(0);
@@ -617,16 +617,39 @@
       }, [gameData?.buzzerOpen, gameData?.timer, activeGameId]);
 
       const createGame = async () => {
-        const code = generateCode(6);
-        const newGame = {
-          hostId: user.uid, code, createdAt: serverTimestamp(),
-          initialTimer: 30, timer: 30, buzzerOpen: false, round: 1, buzzes: [], players: {}, teams: [],
-          rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }], status: 'lobby',
-          currentQuestion: '', currentImage: null, focusModeEnabled: false
-        };
-        await setDoc(doc(db, GAMES_COLLECTION, code), newGame);
-        setActiveGameId(code); setViewState('lobby');
-      };
+  const code = generateCode(6);
+
+  const newGame = {
+    hostId: user.uid,
+    code,
+    createdAt: serverTimestamp(),
+
+    initialTimer: 30,
+    timer: 30,
+    buzzerOpen: false,
+    round: 1,
+
+    buzzes: [],
+    players: {},
+    teams: [],
+
+    rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }],
+    status: 'lobby',
+
+    // 🔥 QUESTION DECK (NEW)
+    questions: [],
+    currentQuestionIndex: -1,
+    currentQuestion: '',
+    currentImage: null,
+
+    focusModeEnabled: false
+  };
+
+  await setDoc(doc(db, GAMES_COLLECTION, code), newGame);
+  setActiveGameId(code);
+  setViewState('lobby');
+};
+
 
       const handleMainButton = async () => {
         if (!gameData) return;
@@ -726,6 +749,53 @@
         setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: '', currentImage: null });
       };
+      
+      const addQuestionToDeck = async () => {
+  if (!questionDeckText && !questionImage) return;
+
+  const q = {
+    id: Date.now(),
+    text: questionDeckText,
+    image: questionImage
+  };
+
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: arrayUnion(q)
+  });
+
+  setQuestionDeckText('');
+  setQuestionImage(null);
+  if (fileInputRef.current) fileInputRef.current.value = '';
+};
+
+const nextQuestion = async () => {
+  const idx = (gameData.currentQuestionIndex ?? -1) + 1;
+  const q = gameData.questions?.[idx];
+  if (!q) return;
+
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    currentQuestionIndex: idx,
+    currentQuestion: q.text || '',
+    currentImage: q.image || null,
+    buzzes: [],
+    buzzerOpen: false,
+    timer: gameData.initialTimer
+  });
+};
+
+const prevQuestion = async () => {
+  const idx = (gameData.currentQuestionIndex ?? 0) - 1;
+  if (idx < 0) return;
+
+  const q = gameData.questions[idx];
+
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    currentQuestionIndex: idx,
+    currentQuestion: q.text || '',
+    currentImage: q.image || null
+  });
+};
+
 
       if (viewState === 'list') {
         return (
@@ -776,8 +846,30 @@
                   {questionImage && <button onClick={() => { setQuestionImage(null); fileInputRef.current.value = ""; }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>}
                 </div>
                 {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
-                <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionInput} onChange={(e) => setQuestionInput(e.target.value)} />
-                <div className="flex gap-2"><button onClick={updateQuestion} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"><Eye size={14}/> Show</button><button onClick={clearQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-slate-300"><EyeOff size={14}/> Hide</button></div>
+                <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionDeckText} onChange={(e) => setQuestionDeckText(e.target.value)} />
+                <div className="flex gap-2">
+  <button
+    onClick={addQuestionToDeck}
+    className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
+  >
+    Add to Deck
+  </button>
+
+  <button
+    onClick={prevQuestion}
+    className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
+  >
+    ◀ Prev
+  </button>
+
+  <button
+    onClick={nextQuestion}
+    className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
+  >
+    Next ▶
+  </button>
+</div>
+
               </div>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
@@ -945,4 +1037,5 @@
   </script>
 </body>
 </html>
+
 
