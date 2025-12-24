@@ -1030,49 +1030,7 @@ const deleteGameCompletely = async (gameId) => {
   }
 };
 
- const exportLeaderboard = () => {
-  if (!gameData?.players) return;
-
-  // Sort players by score (descending)
-  const sortedPlayers = Object.values(gameData.players)
-    .sort((a, b) => b.score - a.score);
-
-  // CSV Header
-  const headers = [
-    'Rank',
-    'Player Name',
-    'Player Code',
-    'Team',
-    'Score'
-  ];
-
-  // CSV Rows
-  const rows = sortedPlayers.map((p, index) => [
-    index + 1,
-    `"${p.name}"`,
-    `"${p.code}"`,
-    `"${p.team}"`,
-    p.score
-  ]);
-
-  // Build CSV content
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(r => r.join(','))
-  ].join('\n');
-
-  // Create downloadable file
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `leaderboard_${gameData.code}_round_${gameData.round}.csv`;
-  link.click();
-
-  URL.revokeObjectURL(url);
-};
-    
+     
 
       if (viewState === 'list') {
         return (
@@ -1150,19 +1108,6 @@ const deleteGameCompletely = async (gameId) => {
               </button>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
-                <div className="flex justify-between items-center mb-4">
-  <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest">
-    <Trophy className="text-yellow-400" size={16} /> Leaderboard
-  </h3>
-
-  <button
-    onClick={exportLeaderboard}
-    className="text-[10px] bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white px-3 py-1.5 rounded-lg uppercase tracking-widest font-bold transition"
-  >
-    Export CSV
-  </button>
-</div>
-<div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div>
                 <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2">
                   {uploading && (
   <div className="mb-4">
@@ -1379,10 +1324,11 @@ const deleteGameCompletely = async (gameId) => {
               <div className="bg-black/20 p-6 rounded-2xl mb-6 border border-white/5">
                 <div className="flex flex-wrap gap-4">
                     <div className="flex-1 min-w-[200px]"><label className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">New Team</label><div className="flex gap-2"><input value={newTeamName} onChange={(e) => setNewTeamName(e.target.value)} placeholder="Name" className="glass-input flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600"/><button onClick={addTeam} className="bg-emerald-600 hover:bg-emerald-500 p-2 rounded-xl text-white shadow-lg shadow-emerald-500/20"><Plus size={18}/></button></div></div>
-                    <div className="flex-[1.5] min-w-[300px]"><label className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">Register Player</label><div className="flex gap-2"><input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600"/><select value={selectedTeamForPlayer} onChange={(e) => setSelectedTeamForPlayer(e.target.value)} className="glass-input rounded-xl px-3 py-2 text-sm max-w-[120px] text-slate-300"><option value="">None</option>{(gameData.teams || []).map(t => <option key={t} value={t}>{t}</option>)}</select><button onClick={addPlayer} className="bg-blue-600 hover:bg-blue-500 px-4 rounded-xl whitespace-nowrap flex items-center gap-2 text-xs font-bold uppercase tracking-wide shadow-lg shadow-blue-500/20"><UserPlus size={16}/> Gen Code</button></div>
-                </div>
+                    <div className="flex-[1.5] min-w-[300px]"><label className="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">Register Player</label><div className="flex gap-2"><input value={newPlayerName} onChange={(e) => setNewPlayerName(e.target.value)} placeholder="Name" className="glass-input flex-1 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600"/><select value={selectedTeamForPlayer} onChange={(e) => setSelectedTeamForPlayer(e.target.value)} className="glass-input rounded-xl px-3 py-2 text-sm max-w-[120px] text-slate-300"><option value="">None</option>{(gameData.teams || []).map(t => <option key={t} value={t}>{t}</option>)}</select><button onClick={addPlayer} className="bg-blue-600 hover:bg-blue-500 px-4 rounded-xl whitespace-nowrap flex items-center gap-2 text-xs font-bold uppercase tracking-wide shadow-lg shadow-blue-500/20"><UserPlus size={16}/> Gen Code</button></div></div>
                 </div>
               </div>
+
+              <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3><div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
               <div className="flex gap-2 mb-3">
   <input
     type="number"
@@ -1490,6 +1436,7 @@ const deleteGameCompletely = async (gameId) => {
               </div>
             </div>
           </div>
+        </div>
       );
     };
 
@@ -1593,16 +1540,6 @@ const deleteGameCompletely = async (gameId) => {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
 
 
 
