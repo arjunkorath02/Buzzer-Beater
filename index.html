@@ -735,16 +735,31 @@
       };
 
       const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          if (file.size > 5000000) { alert("Image is too large (Max 5MB for upload)."); return; }
-          try {
-            const compressedDataUrl = await compressImage(file);
-            if (compressedDataUrl.length > 950000) { alert("Image is too complex even after compression."); return; }
-            setQuestionImage(compressedDataUrl);
-          } catch (error) { console.error("Compression failed", error); alert("Failed to process image."); }
-        }
-      };
+  const file = e.target.files[0];
+  if (!file || !activeGameId) return;
+
+  if (file.size > 5_000_000) {
+    alert("Image too large (max 5MB)");
+    return;
+  }
+
+  try {
+    const imgRef = ref(
+      storage,
+      `games/${activeGameId}/questions/${Date.now()}-${file.name}`
+    );
+
+    await uploadBytes(imgRef, file);
+    const url = await getDownloadURL(imgRef);
+
+    // ✅ store FINAL URL, not base64
+    setQuestionImage(url);
+  } catch (err) {
+    console.error("Upload failed", err);
+    alert("Image upload failed");
+  }
+};
+
 
       const handleBulkImageUpload = async (e) => {
   const files = Array.from(e.target.files || []);
@@ -791,23 +806,10 @@
       const addQuestionToDeck = async () => {
   if (!questionDeckText && !questionImage) return;
 
-  let imageUrl = null;
-
-  // 🔹 If single image selected, upload it to Storage
-  if (questionImage) {
-    const blob = await fetch(questionImage).then(r => r.blob());
-    const imgRef = ref(
-      storage,
-      `games/${activeGameId}/questions/${Date.now()}-single.jpg`
-    );
-    await uploadBytes(imgRef, blob);
-    imageUrl = await getDownloadURL(imgRef);
-  }
-
   const q = {
-    id: Date.now(),
+    id: crypto.randomUUID(),
     text: questionDeckText || '',
-    image: imageUrl
+    image: questionImage || null
   };
 
   await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
@@ -818,6 +820,7 @@
   setQuestionImage(null);
   if (fileInputRef.current) fileInputRef.current.value = '';
 };
+
 
 
 const nextQuestion = async () => {
@@ -1270,6 +1273,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
