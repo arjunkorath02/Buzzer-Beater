@@ -582,6 +582,7 @@
       const [questionInput, setQuestionInput] = useState('');
       const [questionImage, setQuestionImage] = useState(null);
       const [questionDeckText, setQuestionDeckText] = useState('');
+      const [dragIndex, setDragIndex] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
       const fileInputRef = useRef(null);
       const prevBuzzCountHost = useRef(0);
@@ -879,6 +880,21 @@ const deletePlayer = async (pid) => {
     players: updatedPlayers
   });
 };
+const reorderQuestions = async (from, to) => {
+  if (from === to) return;
+
+  const updated = [...gameData.questions];
+  const [moved] = updated.splice(from, 1);
+  updated.splice(to, 0, moved);
+
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: updated,
+    currentQuestionIndex:
+      gameData.currentQuestionIndex === from
+        ? to
+        : gameData.currentQuestionIndex
+  });
+};
 
  const deleteQuestion = async (qid) => {
   const updated = gameData.questions.filter(q => q.id !== qid);
@@ -1052,13 +1068,18 @@ const clearDeck = async () => {
     {gameData.questions.map((q, i) => (
       <div
   key={q.id}
+  draggable
+  onDragStart={() => setDragIndex(i)}
+  onDragOver={(e) => e.preventDefault()}
+  onDrop={() => reorderQuestions(dragIndex, i)}
   onClick={() => jumpToQuestion(i)}
-  className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer ${
+  className={`flex items-center gap-2 p-2 rounded-lg border cursor-move ${
     i === gameData.currentQuestionIndex
       ? 'border-emerald-500/50 bg-emerald-500/10'
       : 'border-white/10 bg-black/30 hover:bg-white/5'
   }`}
 >
+
 
         <span className="text-xs text-slate-400 w-6">{i + 1}</span>
 
@@ -1334,6 +1355,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
