@@ -748,6 +748,7 @@ const handleSingleImageUpload = async (e) => {
 
     await uploadBytes(imgRef, file);
     const url = await getDownloadURL(imgRef);
+    console.log("IMAGE URL (single):", url);
 
     const q = {
       id: crypto.randomUUID(),
@@ -782,6 +783,7 @@ const handleSingleImageUpload = async (e) => {
 
     await uploadBytes(imgRef, file);
     const url = await getDownloadURL(imgRef);
+    console.log("IMAGE URL (bulk):", url);
 
     newQuestions.push({
       id: crypto.randomUUID(),
@@ -1374,6 +1376,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
