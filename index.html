@@ -133,6 +133,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
@@ -149,6 +150,7 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const storage = getStorage(app);
     const appId = "buzzer-game-v1";
     const GAMES_COLLECTION = 'gameRooms';
 
@@ -744,26 +746,30 @@
 
       const handleBulkImageUpload = async (e) => {
   const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+  if (!files.length || !activeGameId) return;
 
   for (const file of files) {
-    if (file.size > 5000000) continue;
-
     try {
-      const compressed = await compressImage(file);
-      if (compressed.length > 950000) continue;
+      const imgRef = ref(
+        storage,
+        `games/${activeGameId}/questions/${Date.now()}-${file.name}`
+      );
+
+      await uploadBytes(imgRef, file);
+      const url = await getDownloadURL(imgRef);
 
       const q = {
         id: Date.now() + Math.random(),
         text: '',
-        image: compressed
+        image: url
       };
 
       await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
         questions: arrayUnion(q)
       });
+
     } catch (err) {
-      console.error('Bulk image failed:', err);
+      console.error('Bulk upload failed:', err);
     }
   }
 
@@ -1100,6 +1106,7 @@ const prevQuestion = async () => {
   </script>
 </body>
 </html>
+
 
 
 
