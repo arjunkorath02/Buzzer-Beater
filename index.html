@@ -1030,7 +1030,49 @@ const deleteGameCompletely = async (gameId) => {
   }
 };
 
-     
+ const exportLeaderboard = () => {
+  if (!gameData?.players) return;
+
+  // Sort players by score (descending)
+  const sortedPlayers = Object.values(gameData.players)
+    .sort((a, b) => b.score - a.score);
+
+  // CSV Header
+  const headers = [
+    'Rank',
+    'Player Name',
+    'Player Code',
+    'Team',
+    'Score'
+  ];
+
+  // CSV Rows
+  const rows = sortedPlayers.map((p, index) => [
+    index + 1,
+    `"${p.name}"`,
+    `"${p.code}"`,
+    `"${p.team}"`,
+    p.score
+  ]);
+
+  // Build CSV content
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(r => r.join(','))
+  ].join('\n');
+
+  // Create downloadable file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `leaderboard_${gameData.code}_round_${gameData.round}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
+    
 
       if (viewState === 'list') {
         return (
@@ -1328,7 +1370,19 @@ const deleteGameCompletely = async (gameId) => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3><div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
+              <div className="flex justify-between items-center mb-4">
+  <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest">
+    <Trophy className="text-yellow-400" size={16} /> Leaderboard
+  </h3>
+
+  <button
+    onClick={exportLeaderboard}
+    className="text-[10px] bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white px-3 py-1.5 rounded-lg uppercase tracking-widest font-bold transition"
+  >
+    Export CSV
+  </button>
+</div>
+<div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
               <div className="flex gap-2 mb-3">
   <input
     type="number"
@@ -1540,6 +1594,7 @@ const deleteGameCompletely = async (gameId) => {
   </script>
 </body>
 </html>
+
 
 
 
