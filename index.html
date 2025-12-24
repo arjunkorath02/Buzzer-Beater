@@ -133,7 +133,13 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+   import { 
+  getStorage, 
+  ref, 
+  uploadBytesResumable, 
+  getDownloadURL 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
@@ -584,6 +590,9 @@
       const [questionDeckText, setQuestionDeckText] = useState('');
       const [dragIndex, setDragIndex] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
+      const [uploadProgress, setUploadProgress] = useState(0);
+      const [uploading, setUploading] = useState(false);
+      const [uploadLabel, setUploadLabel] = useState('');
       const fileInputRef = useRef(null);
       const prevBuzzCountHost = useRef(0);
 
@@ -740,40 +749,61 @@ const handleSingleImageUpload = async (e) => {
   const file = e.target.files[0];
   if (!file || !activeGameId) return;
 
-  try {
-    const imgRef = ref(
-      storage,
-      `games/${activeGameId}/questions/${Date.now()}-${file.name}`
-    );
+  setUploading(true);
+  setUploadProgress(0);
+  setUploadLabel('Uploading image...');
 
-    await uploadBytes(imgRef, file);
-    const url = await getDownloadURL(imgRef);
-    console.log("IMAGE URL (single):", url);
+  const imgRef = ref(
+    storage,
+    `games/${activeGameId}/questions/${Date.now()}-${file.name}`
+  );
 
-    const q = {
-      id: crypto.randomUUID(),
-      text: '',
-      image: url
-    };
+  const uploadTask = uploadBytesResumable(imgRef, file);
 
-    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-      questions: arrayUnion(q)
-    });
+  uploadTask.on(
+    'state_changed',
+    (snapshot) => {
+      const progress = Math.round(
+        (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+      );
+      setUploadProgress(progress);
+    },
+    (error) => {
+      console.error(error);
+      alert('Image upload failed');
+      setUploading(false);
+    },
+    async () => {
+      const url = await getDownloadURL(uploadTask.snapshot.ref);
 
-  } catch (err) {
-    console.error(err);
-    alert("Image upload failed");
-  }
+      await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+        questions: arrayUnion({
+          id: crypto.randomUUID(),
+          text: '',
+          image: url
+        })
+      });
 
-  if (fileInputRef.current) fileInputRef.current.value = '';
+      setUploading(false);
+      setUploadProgress(0);
+      setUploadLabel('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  );
 };
+
 
 
       const handleBulkImageUpload = async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length || !activeGameId) return;
 
-  const newQuestions = [];
+  setUploading(true);
+  setUploadProgress(0);
+  setUploadLabel(`Uploading 1 of ${files.length}`);
+
+  const uploadedQuestions = [];
+  let completed = 0;
 
   for (const file of files) {
     const imgRef = ref(
@@ -781,24 +811,43 @@ const handleSingleImageUpload = async (e) => {
       `games/${activeGameId}/questions/${Date.now()}-${file.name}`
     );
 
-    await uploadBytes(imgRef, file);
-    const url = await getDownloadURL(imgRef);
-    console.log("IMAGE URL (bulk):", url);
+    await new Promise((resolve, reject) => {
+      const task = uploadBytesResumable(imgRef, file);
 
-    newQuestions.push({
-      id: crypto.randomUUID(),
-      text: '',
-      image: url
+      task.on(
+        'state_changed',
+        (snapshot) => {
+          const perFile = snapshot.bytesTransferred / snapshot.totalBytes;
+          const overall =
+            ((completed + perFile) / files.length) * 100;
+          setUploadProgress(Math.round(overall));
+        },
+        reject,
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref);
+          uploadedQuestions.push({
+            id: crypto.randomUUID(),
+            text: '',
+            image: url
+          });
+          completed++;
+          setUploadLabel(`Uploading ${completed + 1} of ${files.length}`);
+          resolve();
+        }
+      );
     });
   }
 
-  // ✅ ONE Firestore write (no race condition)
   await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: [...(gameData.questions || []), ...newQuestions]
+    questions: [...(gameData.questions || []), ...uploadedQuestions]
   });
 
+  setUploading(false);
+  setUploadProgress(0);
+  setUploadLabel('');
   if (fileInputRef.current) fileInputRef.current.value = '';
 };
+
 
 
 
@@ -967,7 +1016,23 @@ const clearDeck = async () => {
               </button>
 
               <div className="glass-panel p-6 rounded-3xl space-y-4">
-                <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2"><HelpCircle size={16} /> Question Board</h3>
+                <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2">
+                  {uploading && (
+  <div className="mb-3">
+    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+      <span>{uploadLabel}</span>
+      <span>{uploadProgress}%</span>
+    </div>
+    <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+        style={{ width: `${uploadProgress}%` }}
+      />
+    </div>
+  </div>
+)}
+
+                  <HelpCircle size={16} /> Question Board</h3>
                 <div className="flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
                   <ImageIcon size={18} className="text-slate-400"/>
                   <input
@@ -1376,6 +1441,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
