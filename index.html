@@ -572,6 +572,8 @@
       const [newTeamName, setNewTeamName] = useState('');
       const [newPlayerName, setNewPlayerName] = useState('');
       const [selectedTeamForPlayer, setSelectedTeamForPlayer] = useState('');
+      const [plusScore, setPlusScore] = useState(5);
+      const [minusScore, setMinusScore] = useState(5);
       const [newRoundTime, setNewRoundTime] = useState(30);
       const [newRoundQualifiers, setNewRoundQualifiers] = useState(10);
       const [editingRoundId, setEditingRoundId] = useState(null);
@@ -789,10 +791,23 @@
       const addQuestionToDeck = async () => {
   if (!questionDeckText && !questionImage) return;
 
+  let imageUrl = null;
+
+  // 🔹 If single image selected, upload it to Storage
+  if (questionImage) {
+    const blob = await fetch(questionImage).then(r => r.blob());
+    const imgRef = ref(
+      storage,
+      `games/${activeGameId}/questions/${Date.now()}-single.jpg`
+    );
+    await uploadBytes(imgRef, blob);
+    imageUrl = await getDownloadURL(imgRef);
+  }
+
   const q = {
     id: Date.now(),
-    text: questionDeckText,
-    image: questionImage
+    text: questionDeckText || '',
+    image: imageUrl
   };
 
   await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
@@ -803,6 +818,7 @@
   setQuestionImage(null);
   if (fileInputRef.current) fileInputRef.current.value = '';
 };
+
 
 const nextQuestion = async () => {
   const idx = (gameData.currentQuestionIndex ?? -1) + 1;
@@ -831,7 +847,40 @@ const prevQuestion = async () => {
     currentImage: q.image || null
   });
 };
+const deletePlayer = async (pid) => {
+  const updatedPlayers = { ...gameData.players };
+  delete updatedPlayers[pid];
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    players: updatedPlayers
+  });
+};
 
+ const deleteQuestion = async (qid) => {
+  const updated = gameData.questions.filter(q => q.id !== qid);
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: updated
+  });
+};
+
+const updateQuestionText = async (qid, newText) => {
+  const updated = gameData.questions.map(q =>
+    q.id === qid ? { ...q, text: newText } : q
+  );
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: updated
+  });
+};
+
+const clearDeck = async () => {
+  if (!confirm('Delete all questions?')) return;
+  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+    questions: [],
+    currentQuestionIndex: -1,
+    currentQuestion: '',
+    currentImage: null
+  });
+};
+     
 
       if (viewState === 'list') {
         return (
@@ -936,6 +985,40 @@ const prevQuestion = async () => {
       )}
     </div>
   )}
+{gameData.questions?.length > 0 && (
+  <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
+    {gameData.questions.map((q, i) => (
+      <div
+        key={q.id}
+        className={`flex items-center gap-2 p-2 rounded-lg border ${
+          i === gameData.currentQuestionIndex
+            ? 'border-emerald-500/50 bg-emerald-500/10'
+            : 'border-white/10 bg-black/30'
+        }`}
+      >
+        <span className="text-xs text-slate-400 w-6">{i + 1}</span>
+
+        <input
+          defaultValue={q.text}
+          onBlur={(e) => updateQuestionText(q.id, e.target.value)}
+          className="flex-1 bg-transparent text-xs text-white outline-none"
+          placeholder="(Image only)"
+        />
+
+        <button onClick={() => deleteQuestion(q.id)} className="text-red-400">
+          <Trash2 size={14} />
+        </button>
+      </div>
+    ))}
+
+    <button
+      onClick={clearDeck}
+      className="w-full text-[10px] uppercase tracking-widest mt-2 bg-red-500/20 hover:bg-red-500 text-red-300 py-1.5 rounded-lg"
+    >
+      Clear All Questions
+    </button>
+  </div>
+)}
 
 </div>
 
@@ -976,6 +1059,23 @@ const prevQuestion = async () => {
               </div>
 
               <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3><div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
+              <div className="flex gap-2 mb-3">
+  <input
+    type="number"
+    value={minusScore}
+    onChange={(e) => setMinusScore(Number(e.target.value))}
+    className="glass-input w-16 text-center text-xs"
+    placeholder="-"
+  />
+  <input
+    type="number"
+    value={plusScore}
+    onChange={(e) => setPlusScore(Number(e.target.value))}
+    className="glass-input w-16 text-center text-xs"
+    placeholder="+"
+  />
+</div>
+
               <div className="flex-1 overflow-y-auto rounded-2xl border border-white/5 bg-black/20">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-white/5 text-slate-400 text-[10px] uppercase tracking-widest sticky top-0 backdrop-blur-md z-10"><tr><th className="p-4 font-medium">Player / Code</th><th className="p-4 font-medium">Team</th><th className="p-4 text-center font-medium">Status</th><th className="p-4 text-right font-medium">Score</th><th className="p-4 text-right font-medium">Action</th></tr></thead>
@@ -989,8 +1089,44 @@ const prevQuestion = async () => {
                           {player.locked && <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">LOCKED</div>}
                         </td>
                         <td className="p-4 text-right font-mono text-lg font-bold">{player.score}</td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2 mb-2"><button onClick={() => updateScore(player.id, -5)} className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Minus size={12} /></button><button onClick={() => updateScore(player.id, 5)} className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Plus size={12} /></button></div>
+                        <td className="p-4 text-right space-y-2">
+
+  {/* SCORE CONTROLS */}
+  <div className="flex justify-end gap-2">
+    <button
+      onClick={() => updateScore(player.id, -minusScore)}
+      className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
+    >
+      <Minus size={12} />
+    </button>
+
+    <button
+      onClick={() => updateScore(player.id, plusScore)}
+      className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
+    >
+      <Plus size={12} />
+    </button>
+  </div>
+
+  {/* DELETE PLAYER */}
+  <button
+    onClick={() => deletePlayer(player.id)}
+    className="w-full text-[9px] bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 font-bold py-1 rounded border border-red-500/30 uppercase tracking-wider"
+  >
+    DELETE
+  </button>
+
+  {/* UNLOCK PLAYER */}
+  {player.locked && (
+    <button
+      onClick={() => toggleLock(player.id, player.locked)}
+      className="w-full text-[9px] bg-yellow-500/20 hover:bg-yellow-500 hover:text-black text-yellow-300 font-bold py-1 rounded border border-yellow-500/30 uppercase tracking-wider"
+    >
+      UNLOCK
+    </button>
+  )}
+</td>
+
                           {player.locked && <button onClick={() => toggleLock(player.id, player.locked)} className="w-full bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 text-[9px] font-bold py-1 rounded border border-red-500/30 flex items-center justify-center gap-1 transition uppercase tracking-wider"><Unlock size={10}/> Unlock</button>}
                         </td>
                       </tr>
@@ -1104,6 +1240,7 @@ const prevQuestion = async () => {
   </script>
 </body>
 </html>
+
 
 
 
