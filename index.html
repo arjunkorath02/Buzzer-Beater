@@ -1080,13 +1080,13 @@ const deleteGameCompletely = async (gameId) => {
       {Object.keys(g.players || {}).length} Players
     </div>
   </div>
-    </div>
+))}
+                          </div>
           </div>
         </div>
       );
     }
 
-))}
 
 
       if (!gameData) return <Loading msg="Loading Game Room..." />;
@@ -1541,6 +1541,7 @@ const deleteGameCompletely = async (gameId) => {
   </script>
 </body>
 </html>
+
 
 
 
