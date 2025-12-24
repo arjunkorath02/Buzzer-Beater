@@ -132,14 +132,16 @@
     import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-   import { 
+    import { getFirestore, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, arrayUnion, query, where, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { 
   getStorage, 
   ref, 
   uploadBytesResumable, 
-  getDownloadURL 
+  getDownloadURL,
+  listAll,
+  deleteObject
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-
+    import { deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
@@ -948,11 +950,26 @@ const reorderQuestions = async (from, to) => {
 };
 
  const deleteQuestion = async (qid) => {
-  const updated = gameData.questions.filter(q => q.id !== qid);
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: updated
-  });
+  try {
+    const question = gameData.questions.find(q => q.id === qid);
+
+    // 🔥 DELETE IMAGE FROM STORAGE IF IT EXISTS
+    if (question?.image) {
+      const imgRef = ref(storage, question.image);
+      await deleteObject(imgRef);
+    }
+
+    // 🔥 REMOVE QUESTION FROM FIRESTORE
+    const updated = gameData.questions.filter(q => q.id !== qid);
+    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+      questions: updated
+    });
+  } catch (err) {
+    console.error('Failed to delete question image:', err);
+  }
 };
+
+
 
 const updateQuestionText = async (qid, newText) => {
   const updated = gameData.questions.map(q =>
@@ -964,14 +981,56 @@ const updateQuestionText = async (qid, newText) => {
 };
 
 const clearDeck = async () => {
-  if (!confirm('Delete all questions?')) return;
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: [],
-    currentQuestionIndex: -1,
-    currentQuestion: '',
-    currentImage: null
-  });
+  if (!confirm('Delete all questions and all uploaded images?')) return;
+
+  try {
+    // 🔥 1. DELETE ALL IMAGES FROM STORAGE
+    const folderRef = ref(storage, `games/${activeGameId}/questions`);
+    const result = await listAll(folderRef);
+
+    await Promise.all(
+      result.items.map((itemRef) => deleteObject(itemRef))
+    );
+
+    // 🔥 2. CLEAR FIRESTORE DATA
+    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+      questions: [],
+      currentQuestionIndex: -1,
+      currentQuestion: '',
+      currentImage: null
+    });
+
+    console.log('All questions and images deleted successfully');
+  } catch (err) {
+    console.error('Failed to clear deck:', err);
+    alert('Some images could not be deleted. Check console.');
+  }
 };
+const deleteGameCompletely = async (gameId) => {
+  if (!confirm('Delete this game and ALL its images permanently?')) return;
+
+  try {
+    // 🔥 DELETE ALL QUESTION IMAGES FROM STORAGE
+    const folderRef = ref(storage, `games/${gameId}/questions`);
+    const result = await listAll(folderRef);
+
+    await Promise.all(
+      result.items.map(itemRef => deleteObject(itemRef))
+    );
+
+    // 🔥 DELETE FIRESTORE GAME DOCUMENT
+    await deleteDoc(doc(db, GAMES_COLLECTION, gameId));
+
+    // 🔥 RESET UI
+    setActiveGameId(null);
+    setViewState('list');
+
+  } catch (err) {
+    console.error('Failed to delete game completely:', err);
+    alert('Failed to delete game. Check console.');
+  }
+};
+
      
 
       if (viewState === 'list') {
@@ -984,7 +1043,16 @@ const clearDeck = async () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div onClick={createGame} className="glass-panel p-10 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition border-dashed border-2 border-white/20 hover:border-blue-500/50 group"><div className="bg-blue-600/20 p-4 rounded-full mb-4 group-hover:scale-110 transition"><Plus className="w-12 h-12 text-blue-400" /></div><h3 className="text-2xl font-bold">Create New Game</h3></div>
               {games.map(g => (
-                <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition border border-white/5 hover:border-white/20 relative group">
+                <div <button
+  onClick={(e) => {
+    e.stopPropagation(); // 🔥 VERY IMPORTANT
+    deleteGameCompletely(g.id);
+  }}
+  className="absolute top-4 right-4 text-red-400 hover:text-red-300"
+>
+  <Trash2 size={16} />
+</button>
+key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition border border-white/5 hover:border-white/20 relative group">
                    <div className="absolute top-4 right-4 text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-black/40 px-2 py-1 rounded">Round {g.round}</div>
                    <h3 className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">{g.code}</h3>
                    <div className="text-xs text-slate-400 uppercase tracking-widest mb-6">{new Date(g.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</div>
@@ -1448,6 +1516,7 @@ const clearDeck = async () => {
   </script>
 </body>
 </html>
+
 
 
 
