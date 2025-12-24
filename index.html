@@ -742,6 +742,35 @@
         }
       };
 
+      const handleBulkImageUpload = async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  for (const file of files) {
+    if (file.size > 5000000) continue;
+
+    try {
+      const compressed = await compressImage(file);
+      if (compressed.length > 950000) continue;
+
+      const q = {
+        id: Date.now() + Math.random(),
+        text: '',
+        image: compressed
+      };
+
+      await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+        questions: arrayUnion(q)
+      });
+    } catch (err) {
+      console.error('Bulk image failed:', err);
+    }
+  }
+
+  if (fileInputRef.current) fileInputRef.current.value = '';
+};
+
+
       const updateQuestion = async () => {
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
       };
@@ -843,7 +872,15 @@ const prevQuestion = async () => {
                 <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2"><HelpCircle size={16} /> Question Board</h3>
                 <div className="flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
                   <ImageIcon size={18} className="text-slate-400"/>
-                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 transition cursor-pointer" />
+                  <input
+  type="file"
+  accept="image/*"
+  multiple
+  ref={fileInputRef}
+  onChange={handleBulkImageUpload}
+  className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 transition cursor-pointer"
+/>
+
                   {questionImage && <button onClick={() => { setQuestionImage(null); fileInputRef.current.value = ""; }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>}
                 </div>
                 {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
@@ -869,6 +906,31 @@ const prevQuestion = async () => {
   >
     Next ▶
   </button>
+</div>
+                 {gameData.currentQuestionIndex >= 0 && (
+    <div className="mt-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+      <div className="text-[10px] uppercase tracking-widest font-bold text-emerald-400 mb-2">
+        LIVE ON PLAYERS & PROJECTOR
+      </div>
+
+      <div className="text-xs text-slate-400 mb-1">
+        Question {gameData.currentQuestionIndex + 1} of {gameData.questions?.length || 0}
+      </div>
+
+      {gameData.currentImage && (
+        <div className="mb-3 h-32 bg-black/40 rounded-lg flex items-center justify-center overflow-hidden">
+          <img src={gameData.currentImage} className="h-full object-contain" />
+        </div>
+      )}
+
+      {gameData.currentQuestion && (
+        <div className="text-sm font-semibold text-white formatted-text">
+          {gameData.currentQuestion}
+        </div>
+      )}
+    </div>
+  )}
+
 </div>
 
               </div>
@@ -1038,6 +1100,7 @@ const prevQuestion = async () => {
   </script>
 </body>
 </html>
+
 
 
 
