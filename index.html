@@ -141,10 +141,9 @@
   listAll,
   deleteObject
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-    import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play } from 'https://esm.sh/lucide-react@0.294.0';
+    import { Smartphone, Monitor, Timer, Users, Trophy, Zap, Plus, Minus, RefreshCw, Search, Lock, LogOut, ChevronRight, UserPlus, PlayCircle, List, Edit2, Check, X, Mail, Key, HelpCircle, Eye, EyeOff, Image as ImageIcon, Trash2, Projector, Volume2, ShieldAlert, Shield, Unlock, Play, Download } from 'https://esm.sh/lucide-react@0.294.0';
 
     // --- FIREBASE CONFIGURATION ---
-    // 🔴 IMPORTANT: REPLACE WITH YOUR OWN KEYS FROM FIREBASE CONSOLE 🔴
     const firebaseConfig = {
       apiKey: "AIzaSyCKsrgWh96l19ZwpWbK_QIjIO3lATNaAIQ",
       authDomain: "buzzer-beater-ae6f8.firebaseapp.com",
@@ -173,31 +172,6 @@
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
       return `${m}:${s < 10 ? '0' : ''}${s}`;
-    };
-
-    const compressImage = (file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800;
-            let width = img.width;
-            let height = img.height;
-            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.6));
-          };
-          img.onerror = (e) => reject(e);
-        };
-        reader.onerror = (e) => reject(e);
-      });
     };
 
     // --- SOUND EFFECTS ---
@@ -413,7 +387,7 @@
                  <div className="flex-1 overflow-y-auto pr-2">
                     <table className="w-full text-left">
                        <thead className="text-slate-500 uppercase text-xs tracking-wider border-b border-white/10">
-                          <tr><th className="pb-4 pl-4">Rank</th><th className="pb-4">Player</th><th className="pb-4 text-right">Score</th></tr>
+                         <tr><th className="pb-4 pl-4">Rank</th><th className="pb-4">Player</th><th className="pb-4 text-right">Score</th></tr>
                        </thead>
                        <tbody className="divide-y divide-white/5">
                           {sortedPlayers.map((p, i) => (
@@ -586,9 +560,8 @@
       const [editingRoundId, setEditingRoundId] = useState(null);
       const [editRoundTime, setEditRoundTime] = useState(30);
       const [editRoundQualifiers, setEditRoundQualifiers] = useState(10);
-      const [questionInput, setQuestionInput] = useState('');
-      const [questionImage, setQuestionImage] = useState(null);
       const [questionDeckText, setQuestionDeckText] = useState('');
+      const [questionImage, setQuestionImage] = useState(null);
       const [dragIndex, setDragIndex] = useState(null);
       const [searchQuery, setSearchQuery] = useState('');
       const [uploadProgress, setUploadProgress] = useState(0);
@@ -633,41 +606,31 @@
       }, [gameData?.buzzerOpen, gameData?.timer, activeGameId]);
 
       const createGame = async () => {
-  const code = generateCode(6);
-
-  const newGame = {
-    hostId: user.uid,
-    code,
-    createdAt: serverTimestamp(),
-
-    initialTimer: 30,
-    timer: 30,
-    buzzerOpen: false,
-    round: 1,
-
-    buzzes: [],
-    players: {},
-    teams: [],
-
-    rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }],
-    status: 'lobby',
-
-    // 🔥 QUESTION DECK (NEW)
-    questions: [],
-    currentQuestionIndex: -1,
-    currentQuestion: '',
-    currentImage: null,
-    questionHidden: false,
-
-
-    focusModeEnabled: false
-  };
-
-  await setDoc(doc(db, GAMES_COLLECTION, code), newGame);
-  setActiveGameId(code);
-  setViewState('lobby');
-};
-
+        const code = generateCode(6);
+        const newGame = {
+          hostId: user.uid,
+          code,
+          createdAt: serverTimestamp(),
+          initialTimer: 30,
+          timer: 30,
+          buzzerOpen: false,
+          round: 1,
+          buzzes: [],
+          players: {},
+          teams: [],
+          rounds: [{ id: 1, label: 'Round 1', timer: 30, qualifiers: 100 }],
+          status: 'lobby',
+          questions: [],
+          currentQuestionIndex: -1,
+          currentQuestion: '',
+          currentImage: null,
+          questionHidden: false,
+          focusModeEnabled: false
+        };
+        await setDoc(doc(db, GAMES_COLLECTION, code), newGame);
+        setActiveGameId(code);
+        setViewState('lobby');
+      };
 
       const handleMainButton = async () => {
         if (!gameData) return;
@@ -693,8 +656,6 @@
       const toggleFocusMode = async () => {
         const newStatus = !gameData.focusModeEnabled;
         const updates = { focusModeEnabled: newStatus };
-        
-        // AUTO UNLOCK ALL PLAYERS WHEN TURNING OFF MODE
         if (!newStatus && gameData.players) {
            Object.keys(gameData.players).forEach(pid => {
              if (gameData.players[pid].locked) {
@@ -702,11 +663,11 @@
              }
            });
         }
-        
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), updates);
       };
 
       const resetBuzzers = async () => updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { buzzes: [] });
+      
       const addNewRound = async () => {
         const nextId = (gameData.rounds || []).length + 1;
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { rounds: arrayUnion({ id: nextId, label: `Round ${nextId}`, timer: newRoundTime, qualifiers: newRoundQualifiers }) });
@@ -721,7 +682,6 @@
            const cutoffScore = sorted[r.qualifiers - 1].score;
            qIds = sorted.filter(p => p.score >= cutoffScore).map(p => p.id);
         }
-
         const updatedPlayers = { ...gameData.players };
         Object.keys(updatedPlayers).forEach(pid => updatedPlayers[pid].active = qIds.includes(pid));
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { round: r.id, timer: r.timer, initialTimer: r.timer, buzzerOpen: false, buzzes: [], players: updatedPlayers });
@@ -746,291 +706,191 @@
         await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { teams: arrayUnion(newTeamName) });
         setNewTeamName('');
       };
-const handleSingleImageUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file || !activeGameId) return;
 
-  setUploading(true);
-  setUploadProgress(0);
-  setUploadLabel('Uploading image...');
-
-  const imgRef = ref(
-    storage,
-    `games/${activeGameId}/questions/${Date.now()}-${file.name}`
-  );
-
-  const uploadTask = uploadBytesResumable(imgRef, file);
-
-  uploadTask.on(
-    'state_changed',
-    (snapshot) => {
-      const progress = Math.round(
-        (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-      );
-      setUploadProgress(progress);
-    },
-    (error) => {
-      console.error(error);
-      alert('Image upload failed');
-      setUploading(false);
-    },
-    async () => {
-      const url = await getDownloadURL(uploadTask.snapshot.ref);
-
-      await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-        questions: arrayUnion({
-          id: crypto.randomUUID(),
-          text: '',
-          image: url
-        })
-      });
-
-      setUploading(false);
-      setUploadProgress(0);
-      setUploadLabel('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  );
-};
-
-
+      const handleSingleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !activeGameId) return;
+        setUploading(true);
+        setUploadProgress(0);
+        setUploadLabel('Uploading image...');
+        const imgRef = ref(storage, `games/${activeGameId}/questions/${Date.now()}-${file.name}`);
+        const uploadTask = uploadBytesResumable(imgRef, file);
+        uploadTask.on('state_changed', (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setUploadProgress(progress);
+        }, (error) => {
+          console.error(error);
+          setUploading(false);
+        }, async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+            questions: arrayUnion({ id: crypto.randomUUID(), text: '', image: url })
+          });
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadLabel('');
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        });
+      };
 
       const handleBulkImageUpload = async (e) => {
-  const files = Array.from(e.target.files || []);
-  if (!files.length || !activeGameId) return;
-
-  setUploading(true);
-  setUploadProgress(0);
-  setUploadLabel(`Uploading 1 of ${files.length}`);
-
-  const uploadedQuestions = [];
-  let completed = 0;
-
-  for (const file of files) {
-    const imgRef = ref(
-      storage,
-      `games/${activeGameId}/questions/${Date.now()}-${file.name}`
-    );
-
-    await new Promise((resolve, reject) => {
-      const task = uploadBytesResumable(imgRef, file);
-
-      task.on(
-        'state_changed',
-        (snapshot) => {
-          const perFile = snapshot.bytesTransferred / snapshot.totalBytes;
-          const overall =
-            ((completed + perFile) / files.length) * 100;
-          setUploadProgress(Math.round(overall));
-        },
-        reject,
-        async () => {
-          const url = await getDownloadURL(task.snapshot.ref);
-          uploadedQuestions.push({
-            id: crypto.randomUUID(),
-            text: '',
-            image: url
+        const files = Array.from(e.target.files || []);
+        if (!files.length || !activeGameId) return;
+        setUploading(true);
+        setUploadProgress(0);
+        setUploadLabel(`Uploading 1 of ${files.length}`);
+        const uploadedQuestions = [];
+        let completed = 0;
+        for (const file of files) {
+          const imgRef = ref(storage, `games/${activeGameId}/questions/${Date.now()}-${file.name}`);
+          await new Promise((resolve, reject) => {
+            const task = uploadBytesResumable(imgRef, file);
+            task.on('state_changed', (snapshot) => {
+              const perFile = snapshot.bytesTransferred / snapshot.totalBytes;
+              const overall = ((completed + perFile) / files.length) * 100;
+              setUploadProgress(Math.round(overall));
+            }, reject, async () => {
+              const url = await getDownloadURL(task.snapshot.ref);
+              uploadedQuestions.push({ id: crypto.randomUUID(), text: '', image: url });
+              completed++;
+              setUploadLabel(`Images ${completed + 1} / ${files.length}`);
+              resolve();
+            });
           });
-          completed++;
-          setUploadLabel(`Images ${completed + 1} / ${files.length}`);
-          resolve();
         }
-      );
-    });
-  }
-
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: [...(gameData.questions || []), ...uploadedQuestions]
-  });
-
-  setUploading(false);
-  setUploadProgress(0);
-  setUploadLabel('');
-  if (fileInputRef.current) fileInputRef.current.value = '';
-};
-
-
-
-
-      const updateQuestion = async () => {
-        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: questionInput, currentImage: questionImage });
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          questions: [...(gameData.questions || []), ...uploadedQuestions]
+        });
+        setUploading(false);
+        setUploadProgress(0);
+        setUploadLabel('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
       };
-      
-      const clearQuestion = async () => {
-        setQuestionInput(''); setQuestionImage(null); if (fileInputRef.current) fileInputRef.current.value = "";
-        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { currentQuestion: '', currentImage: null });
-      };
-      
+
       const addQuestionToDeck = async () => {
-  if (!questionDeckText && !questionImage) return;
+        if (!questionDeckText && !questionImage) return;
+        const q = { id: crypto.randomUUID(), text: questionDeckText || '', image: questionImage || null };
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { questions: arrayUnion(q) });
+        setQuestionDeckText('');
+        setQuestionImage(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      };
 
-  const q = {
-    id: crypto.randomUUID(),
-    text: questionDeckText || '',
-    image: questionImage || null
-  };
+      const nextQuestion = async () => {
+        const idx = (gameData.currentQuestionIndex ?? -1) + 1;
+        const q = gameData.questions?.[idx];
+        if (!q) return;
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          currentQuestionIndex: idx,
+          currentQuestion: q.text || '',
+          currentImage: q.image || null,
+          questionHidden: false,
+          buzzes: [],
+          buzzerOpen: false,
+          timer: gameData.initialTimer
+        });
+      };
 
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: arrayUnion(q)
-  });
+      const prevQuestion = async () => {
+        const idx = (gameData.currentQuestionIndex ?? 0) - 1;
+        if (idx < 0) return;
+        const q = gameData.questions[idx];
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          currentQuestionIndex: idx,
+          currentQuestion: q.text || '',
+          currentImage: q.image || null,
+          questionHidden: false
+        });
+      };
 
-  setQuestionDeckText('');
-  setQuestionImage(null);
-  if (fileInputRef.current) fileInputRef.current.value = '';
-};
-
-
-
-const nextQuestion = async () => {
-  const idx = (gameData.currentQuestionIndex ?? -1) + 1;
-  const q = gameData.questions?.[idx];
-  if (!q) return;
-
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    currentQuestionIndex: idx,
-    currentQuestion: q.text || '',
-    currentImage: q.image || null,
-    questionHidden: false,
-    buzzes: [],
-    buzzerOpen: false,
-    timer: gameData.initialTimer
-  });
-};
-
-const prevQuestion = async () => {
-  const idx = (gameData.currentQuestionIndex ?? 0) - 1;
-  if (idx < 0) return;
-
-  const q = gameData.questions[idx];
-
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    currentQuestionIndex: idx,
-    currentQuestion: q.text || '',
-    currentImage: q.image || null,
-    questionHidden: false
-  });
-};
       const jumpToQuestion = async (index) => {
-  const q = gameData.questions[index];
-  if (!q) return;
+        const q = gameData.questions[index];
+        if (!q) return;
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          currentQuestionIndex: index,
+          currentQuestion: q.text || '',
+          currentImage: q.image || null,
+          questionHidden: false,
+          buzzes: [],
+          buzzerOpen: false,
+          timer: gameData.initialTimer
+        });
+      };
 
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    currentQuestionIndex: index,
-    currentQuestion: q.text || '',
-    currentImage: q.image || null,
-    questionHidden: false,
-    buzzes: [],
-    buzzerOpen: false,
-    timer: gameData.initialTimer
-  });
-};
+      const deletePlayer = async (pid) => {
+        const updatedPlayers = { ...gameData.players };
+        delete updatedPlayers[pid];
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { players: updatedPlayers });
+      };
 
-const deletePlayer = async (pid) => {
-  const updatedPlayers = { ...gameData.players };
-  delete updatedPlayers[pid];
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    players: updatedPlayers
-  });
-};
-const reorderQuestions = async (from, to) => {
-  if (from === to) return;
+      const reorderQuestions = async (from, to) => {
+        if (from === to) return;
+        const updated = [...gameData.questions];
+        const [moved] = updated.splice(from, 1);
+        updated.splice(to, 0, moved);
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          questions: updated,
+          currentQuestionIndex: gameData.currentQuestionIndex === from ? to : gameData.currentQuestionIndex
+        });
+      };
 
-  const updated = [...gameData.questions];
-  const [moved] = updated.splice(from, 1);
-  updated.splice(to, 0, moved);
+      const deleteQuestion = async (qid) => {
+        try {
+          const question = gameData.questions.find(q => q.id === qid);
+          if (question?.image) {
+            const imgRef = ref(storage, question.image);
+            await deleteObject(imgRef);
+          }
+          const updated = gameData.questions.filter(q => q.id !== qid);
+          await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { questions: updated });
+        } catch (err) { console.error('Failed to delete question:', err); }
+      };
 
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: updated,
-    currentQuestionIndex:
-      gameData.currentQuestionIndex === from
-        ? to
-        : gameData.currentQuestionIndex
-  });
-};
+      const updateQuestionText = async (qid, newText) => {
+        const updated = gameData.questions.map(q => q.id === qid ? { ...q, text: newText } : q);
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { questions: updated });
+      };
 
- const deleteQuestion = async (qid) => {
-  try {
-    const question = gameData.questions.find(q => q.id === qid);
+      const clearDeck = async () => {
+        if (!confirm('Delete all questions?')) return;
+        await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
+          questions: [],
+          currentQuestionIndex: -1,
+          currentQuestion: '',
+          currentImage: null
+        });
+      };
 
-    // 🔥 DELETE IMAGE FROM STORAGE IF IT EXISTS
-    if (question?.image) {
-      const imgRef = ref(storage, question.image);
-      await deleteObject(imgRef);
-    }
+      const deleteGameCompletely = async (gameId) => {
+        if (!confirm('Delete game permanently?')) return;
+        await deleteDoc(doc(db, GAMES_COLLECTION, gameId));
+        setActiveGameId(null);
+        setViewState('list');
+      };
 
-    // 🔥 REMOVE QUESTION FROM FIRESTORE
-    const updated = gameData.questions.filter(q => q.id !== qid);
-    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-      questions: updated
-    });
-  } catch (err) {
-    console.error('Failed to delete question image:', err);
-  }
-};
+      const exportLeaderboard = () => {
+        if (!gameData || !gameData.players) return;
+        const sorted = Object.values(gameData.players).sort((a, b) => b.score - a.score);
+        const headers = ["Rank", "Name", "Code", "Team", "Score"];
+        const rows = sorted.map((p, i) => [
+          i + 1,
+          p.name,
+          p.code,
+          p.team,
+          p.score
+        ]);
 
-
-
-const updateQuestionText = async (qid, newText) => {
-  const updated = gameData.questions.map(q =>
-    q.id === qid ? { ...q, text: newText } : q
-  );
-  await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-    questions: updated
-  });
-};
-
-const clearDeck = async () => {
-  if (!confirm('Delete all questions and all uploaded images?')) return;
-
-  try {
-    // 🔥 1. DELETE ALL IMAGES FROM STORAGE
-    const folderRef = ref(storage, `games/${activeGameId}/questions`);
-    const result = await listAll(folderRef);
-
-    await Promise.all(
-      result.items.map((itemRef) => deleteObject(itemRef))
-    );
-
-    // 🔥 2. CLEAR FIRESTORE DATA
-    await updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-      questions: [],
-      currentQuestionIndex: -1,
-      currentQuestion: '',
-      currentImage: null
-    });
-
-    console.log('All questions and images deleted successfully');
-  } catch (err) {
-    console.error('Failed to clear deck:', err);
-    alert('Some images could not be deleted. Check console.');
-  }
-};
-const deleteGameCompletely = async (gameId) => {
-  if (!confirm('Delete this game and ALL its images permanently?')) return;
-
-  try {
-    // 🔥 DELETE ALL QUESTION IMAGES FROM STORAGE
-    const folderRef = ref(storage, `games/${gameId}/questions`);
-    const result = await listAll(folderRef);
-
-    await Promise.all(
-      result.items.map(itemRef => deleteObject(itemRef))
-    );
-
-    // 🔥 DELETE FIRESTORE GAME DOCUMENT
-    await deleteDoc(doc(db, GAMES_COLLECTION, gameId));
-
-    // 🔥 RESET UI
-    setActiveGameId(null);
-    setViewState('list');
-
-  } catch (err) {
-    console.error('Failed to delete game completely:', err);
-    alert('Failed to delete game. Check console.');
-  }
-};
-
-     
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `buzzerbeater_leaderboard_${gameData.code}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
 
       if (viewState === 'list') {
         return (
@@ -1042,51 +902,18 @@ const deleteGameCompletely = async (gameId) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div onClick={createGame} className="glass-panel p-10 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition border-dashed border-2 border-white/20 hover:border-blue-500/50 group"><div className="bg-blue-600/20 p-4 rounded-full mb-4 group-hover:scale-110 transition"><Plus className="w-12 h-12 text-blue-400" /></div><h3 className="text-2xl font-bold">Create New Game</h3></div>
               {games.map(g => (
-  <div
-    key={g.id}
-    onClick={() => {
-      setActiveGameId(g.id);
-      setViewState('lobby');
-    }}
-    className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition border border-white/5 hover:border-white/20 relative group"
-  >
-    {/* DELETE GAME BUTTON */}
-    <button
-      onClick={(e) => {
-        e.stopPropagation(); // prevent opening game
-        deleteGameCompletely(g.id);
-      }}
-      className="absolute top-4 right-4 text-red-400 hover:text-red-300 z-10"
-    >
-      <Trash2 size={16} />
-    </button>
-
-    <div className="absolute top-4 right-12 text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-black/40 px-2 py-1 rounded">
-      Round {g.round}
-    </div>
-
-    <h3 className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">
-      {g.code}
-    </h3>
-
-    <div className="text-xs text-slate-400 uppercase tracking-widest mb-6">
-      {new Date(
-        g.createdAt?.seconds * 1000 || Date.now()
-      ).toLocaleDateString()}
-    </div>
-
-    <div className="flex items-center gap-2 text-sm font-bold text-slate-300 bg-white/5 inline-flex px-3 py-1.5 rounded-lg">
-      <Users className="w-4 h-4" />
-      {Object.keys(g.players || {}).length} Players
-    </div>
-  </div>
-))}
-                          </div>
+                <div key={g.id} onClick={() => { setActiveGameId(g.id); setViewState('lobby'); }} className="glass-panel p-8 rounded-3xl cursor-pointer hover:bg-white/5 transition border border-white/5 hover:border-white/20 relative group">
+                  <button onClick={(e) => { e.stopPropagation(); deleteGameCompletely(g.id); }} className="absolute top-4 right-4 text-red-400 hover:text-red-300 z-10"><Trash2 size={16} /></button>
+                  <div className="absolute top-4 right-12 text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-black/40 px-2 py-1 rounded">Round {g.round}</div>
+                  <h3 className="text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2">{g.code}</h3>
+                  <div className="text-xs text-slate-400 uppercase tracking-widest mb-6">{new Date(g.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString()}</div>
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-300 bg-white/5 inline-flex px-3 py-1.5 rounded-lg"><Users className="w-4 h-4" />{Object.keys(g.players || {}).length} Players</div>
+                </div>
+              ))}
+            </div>
           </div>
-      );
-    }
-
-
+        );
+      }
 
       if (!gameData) return <Loading msg="Loading Game Room..." />;
       const isDirty = gameData.buzzerOpen || (gameData.timer !== (gameData.initialTimer || 30));
@@ -1101,7 +928,6 @@ const deleteGameCompletely = async (gameId) => {
           </div>
           <div className="flex-1 overflow-hidden flex flex-col md:flex-row p-4 gap-4">
             <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pr-1">
-              
               <button onClick={toggleFocusMode} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 border transition-all ${gameData.focusModeEnabled ? 'bg-red-600/90 border-red-400 text-white shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'glass-panel text-slate-400 border-white/5 hover:bg-white/5'}`}>
                 {gameData.focusModeEnabled ? <ShieldAlert size={20} /> : <Shield size={20} />}
                 <span className="uppercase tracking-widest text-xs">Anti-Cheat: {gameData.focusModeEnabled ? 'ACTIVE' : 'OFF'}</span>
@@ -1110,200 +936,53 @@ const deleteGameCompletely = async (gameId) => {
               <div className="glass-panel p-6 rounded-3xl space-y-4">
                 <h3 className="font-bold text-indigo-400 flex items-center gap-2 text-xs uppercase tracking-widest mb-2">
                   {uploading && (
-  <div className="mb-4">
-    <div className="flex items-center justify-between text-[10px] text-slate-400 mb-2">
-      <span className="tracking-widest uppercase">
-        {uploadLabel}
-      </span>
-
-      <span className="font-mono tabular-nums">
-        {uploadProgress}%
-      </span>
-    </div>
-
-    <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
-        style={{ width: `${uploadProgress}%` }}
-      />
-    </div>
-  </div>
-)}
-
-
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mb-2">
+                        <span className="tracking-widest uppercase">{uploadLabel}</span>
+                        <span className="font-mono tabular-nums">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    </div>
+                  )}
                   <HelpCircle size={16} /> Question Board</h3>
                 <div className="flex items-center gap-3 bg-black/30 p-3 rounded-xl border border-white/5">
                   <ImageIcon size={18} className="text-slate-400"/>
-                  <input
-  type="file"
-  accept="image/*"
-  ref={fileInputRef}
-  onChange={handleSingleImageUpload}
-  className="hidden"
-  id="singleImage"
-/>
-
-<input
-  type="file"
-  accept="image/*"
-  multiple
-  onChange={handleBulkImageUpload}
-  className="hidden"
-  id="bulkImage"
-/>
-
-<div className="flex gap-2">
-  <label
-    htmlFor="singleImage"
-    className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-xs font-bold"
-  >
-    + Image
-  </label>
-
-  <label
-    htmlFor="bulkImage"
-    className="cursor-pointer bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded-lg text-xs font-bold"
-  >
-    + Bulk
-  </label>
-</div>
-
-
-                  {questionImage && <button onClick={() => { setQuestionImage(null); fileInputRef.current.value = ""; }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>}
+                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleSingleImageUpload} className="hidden" id="singleImage" />
+                  <input type="file" accept="image/*" multiple onChange={handleBulkImageUpload} className="hidden" id="bulkImage" />
+                  <div className="flex gap-2">
+                    <label htmlFor="singleImage" className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg text-xs font-bold">+ Image</label>
+                    <label htmlFor="bulkImage" className="cursor-pointer bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded-lg text-xs font-bold">+ Bulk</label>
+                  </div>
                 </div>
-                {questionImage && <div className="h-32 w-full bg-black/50 rounded-xl flex items-center justify-center overflow-hidden border border-white/10"><img src={questionImage} alt="Preview" className="h-full object-contain" /></div>}
                 <textarea rows="3" className="w-full bg-black/30 border border-white/10 rounded-xl p-3 text-sm text-white resize-none focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Type question..." value={questionDeckText} onChange={(e) => setQuestionDeckText(e.target.value)} />
                 <div className="flex gap-2">
-  <button
-    onClick={addQuestionToDeck}
-    className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
-  >
-    Add to Deck
-  </button>
-
-  <button
-    onClick={prevQuestion}
-    className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
-  >
-    ◀ Prev
-  </button>
-
-  <button
-    onClick={nextQuestion}
-    className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
-  >
-    Next ▶
-  </button>
-                  <button
-  onClick={() =>
-    updateDoc(doc(db, GAMES_COLLECTION, activeGameId), {
-      questionHidden: !gameData.questionHidden
-    })
-  }
-  className="flex-1 bg-yellow-600 hover:bg-yellow-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest"
->
-  {gameData.questionHidden ? 'Show Question' : 'Hide Question'}
-</button>
-
-</div>
-                 {gameData.currentQuestionIndex >= 0 && (
-    <div className="mt-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-      <div className="text-[10px] uppercase tracking-widest font-bold text-emerald-400 mb-2">
-        LIVE ON PLAYERS & PROJECTOR
-      </div>
-
-      <div className="text-xs text-slate-400 mb-1">
-        Question {gameData.currentQuestionIndex + 1} of {gameData.questions?.length || 0}
-      </div>
-
-      {gameData.currentImage && (
-        <div className="mb-3 h-32 bg-black/40 rounded-lg flex items-center justify-center overflow-hidden">
-          <img src={gameData.currentImage} className="h-full object-contain" />
-        </div>
-      )}
-
-      {gameData.currentQuestion && (
-        <div className="text-sm font-semibold text-white formatted-text">
-          {gameData.currentQuestion}
-        </div>
-      )}
-    </div>
-  )}
-
-                <div className="flex gap-2 mt-3">
-  <label
-    htmlFor="importSlides"
-    className="cursor-pointer bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest"
-  >
-    Import Slides
-  </label>
-
-  <input
-    id="importSlides"
-    type="file"
-    accept="image/*"
-    multiple
-    className="hidden"
-    onChange={handleBulkImageUpload}
-  />
-</div>
-
-{gameData.questions?.length > 0 && (
-  <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
-    {gameData.questions.map((q, i) => (
-      <div
-  key={q.id}
-  draggable
-  onDragStart={() => setDragIndex(i)}
-  onDragOver={(e) => e.preventDefault()}
-  onDrop={() => reorderQuestions(dragIndex, i)}
-  onClick={() => jumpToQuestion(i)}
-  className={`flex items-center gap-2 p-2 rounded-lg border cursor-move ${
-    i === gameData.currentQuestionIndex
-      ? 'border-emerald-500/50 bg-emerald-500/10'
-      : 'border-white/10 bg-black/30 hover:bg-white/5'
-  }`}
->
-
-
-        <span className="text-xs text-slate-400 w-6">{i + 1}</span>
-
-        <input
-          defaultValue={q.text}
-          onBlur={(e) => updateQuestionText(q.id, e.target.value)}
-          className="flex-1 bg-transparent text-xs text-white outline-none"
-          placeholder="(Image only)"
-        />
-
-        <button onClick={() => deleteQuestion(q.id)} className="text-red-400">
-          <Trash2 size={14} />
-        </button>
-      </div>
-    ))}
-
-    <button
-      onClick={clearDeck}
-      className="w-full text-[10px] uppercase tracking-widest mt-2 bg-red-500/20 hover:bg-red-500 text-red-300 py-1.5 rounded-lg"
-    >
-      Clear All Questions
-    </button>
-  </div>
-)}
-
-</div>
-
-              <div className="glass-panel p-6 rounded-3xl space-y-4">
-                <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><List size={16} /> Round Management</h3>
-                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                  {(gameData.rounds || []).map((round) => {
-                    const isEditing = editingRoundId === round.id; const isActive = gameData.round === round.id;
-                    if (isEditing) return (<div key={round.id} className="bg-black/40 border border-blue-500/50 rounded-xl p-2 flex gap-2 items-center"><div className="flex-1 space-y-1"><input type="number" value={editRoundTime} onChange={(e) => setEditRoundTime(Number(e.target.value))} className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white focus:border-blue-500 outline-none" placeholder="Time"/><input type="number" value={editRoundQualifiers} onChange={(e) => setEditRoundQualifiers(Number(e.target.value))} className="w-full bg-transparent border-b border-white/20 px-1 py-1 text-sm text-white focus:border-blue-500 outline-none" placeholder="Qualifiers"/></div><div className="flex flex-col gap-1"><button onClick={saveRound} className="p-1.5 bg-green-600 rounded-lg hover:bg-green-500"><Check size={12}/></button><button onClick={() => setEditingRoundId(null)} className="p-1.5 bg-red-600 rounded-lg hover:bg-red-500"><X size={12}/></button></div></div>);
-                    return (<div key={round.id} className={`flex justify-between items-center p-3 rounded-xl border transition-all ${isActive ? 'bg-indigo-600/20 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}><div className="flex-1"><div className="font-bold text-sm text-white flex items-center gap-2">{round.label} {isActive && <span className="text-[9px] bg-green-500 text-black px-1.5 py-0.5 rounded-full font-black tracking-wide">LIVE</span>}</div><div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">{round.timer}s • Top {round.qualifiers}</div></div><div className="flex items-center gap-2"><button onClick={() => { setEditingRoundId(round.id); setEditRoundTime(round.timer); setEditRoundQualifiers(round.qualifiers); }} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"><Edit2 size={14} /></button><button onClick={() => activateRound(round)} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg tracking-widest uppercase transition ${isActive ? 'bg-white/20 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'}`}>{isActive ? 'RESET' : 'GO'}</button></div></div>);
-                  })}
+                  <button onClick={addQuestionToDeck} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest">Add</button>
+                  <button onClick={prevQuestion} className="flex-1 glass-btn py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest">◀ Prev</button>
+                  <button onClick={nextQuestion} className="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest">Next ▶</button>
+                  <button onClick={() => updateDoc(doc(db, GAMES_COLLECTION, activeGameId), { questionHidden: !gameData.questionHidden })} className="flex-1 bg-yellow-600 hover:bg-yellow-500 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest">{gameData.questionHidden ? 'Show' : 'Hide'}</button>
                 </div>
-                <div className="pt-4 border-t border-white/10">
-                  <div className="grid grid-cols-2 gap-3 mb-3"><input type="number" value={newRoundTime} onChange={(e) => setNewRoundTime(Number(e.target.value))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-white" placeholder="Secs"/><input type="number" value={newRoundQualifiers} onChange={(e) => setNewRoundQualifiers(Number(e.target.value))} className="w-full glass-input rounded-xl px-3 py-2 text-sm text-white" placeholder="Qualifiers"/></div><button onClick={addNewRound} className="w-full glass-btn py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white">+ Add Round</button>
-                </div>
+                {gameData.currentQuestionIndex >= 0 && (
+                  <div className="mt-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+                    <div className="text-[10px] uppercase tracking-widest font-bold text-emerald-400 mb-2">LIVE NOW</div>
+                    <div className="text-xs text-slate-400 mb-1">Question {gameData.currentQuestionIndex + 1} of {gameData.questions?.length || 0}</div>
+                    {gameData.currentImage && <div className="mb-3 h-32 bg-black/40 rounded-lg flex items-center justify-center overflow-hidden"><img src={gameData.currentImage} className="h-full object-contain" /></div>}
+                    {gameData.currentQuestion && <div className="text-sm font-semibold text-white formatted-text">{gameData.currentQuestion}</div>}
+                  </div>
+                )}
+                {gameData.questions?.length > 0 && (
+                  <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
+                    {gameData.questions.map((q, i) => (
+                      <div key={q.id} draggable onDragStart={() => setDragIndex(i)} onDragOver={(e) => e.preventDefault()} onDrop={() => reorderQuestions(dragIndex, i)} onClick={() => jumpToQuestion(i)} className={`flex items-center gap-2 p-2 rounded-lg border cursor-move ${i === gameData.currentQuestionIndex ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-white/10 bg-black/30 hover:bg-white/5'}`}>
+                        <span className="text-xs text-slate-400 w-6">{i + 1}</span>
+                        <input defaultValue={q.text} onBlur={(e) => updateQuestionText(q.id, e.target.value)} className="flex-1 bg-transparent text-xs text-white outline-none" placeholder="(Image only)" />
+                        <button onClick={() => deleteQuestion(q.id)} className="text-red-400"><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                    <button onClick={clearDeck} className="w-full text-[10px] uppercase tracking-widest mt-2 bg-red-500/20 hover:bg-red-500 text-red-300 py-1.5 rounded-lg">Clear All</button>
+                  </div>
+                )}
               </div>
 
               <div className="glass-panel p-6 rounded-3xl flex-1 min-h-[300px] flex flex-col">
@@ -1328,110 +1007,34 @@ const deleteGameCompletely = async (gameId) => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3><div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-48 text-white placeholder-slate-600"/></div></div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-widest"><Trophy className="text-yellow-400" size={16} /> Leaderboard</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={exportLeaderboard} className="p-2 hover:bg-white/10 rounded-full transition text-slate-400 hover:text-white" title="Export Leaderboard CSV">
+                    <Download size={18} />
+                  </button>
+                  <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" /><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="glass-input rounded-full py-2 pl-9 pr-4 text-xs w-40 text-white placeholder-slate-600"/></div>
+                </div>
+              </div>
               <div className="flex gap-2 mb-3">
-  <input
-    type="number"
-    value={minusScore}
-    onChange={(e) => setMinusScore(Number(e.target.value))}
-    className="glass-input w-16 text-center text-xs"
-    placeholder="-"
-  />
-  <input
-    type="number"
-    value={plusScore}
-    onChange={(e) => setPlusScore(Number(e.target.value))}
-    className="glass-input w-16 text-center text-xs"
-    placeholder="+"
-  />
-</div>
+                <input type="number" value={minusScore} onChange={(e) => setMinusScore(Number(e.target.value))} className="glass-input w-16 text-center text-xs" placeholder="-" />
+                <input type="number" value={plusScore} onChange={(e) => setPlusScore(Number(e.target.value))} className="glass-input w-16 text-center text-xs" placeholder="+" />
+              </div>
 
               <div className="flex-1 overflow-y-auto rounded-2xl border border-white/5 bg-black/20">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-white/5 text-slate-400 text-[10px] uppercase tracking-widest sticky top-0 backdrop-blur-md z-10"><tr><th className="p-4 font-medium">Player / Code</th><th className="p-4 font-medium">Team</th><th className="p-4 text-center font-medium">Status</th><th className="p-4 text-right font-medium">Score</th><th className="p-4 text-right font-medium">Action</th></tr></thead>
                   <tbody className="divide-y divide-white/5">
-  {playerList
-    .sort((a, b) => b.score - a.score)
-    .map((player) => (
-      <tr
-        key={player.id}
-        className={`hover:bg-white/5 transition group ${
-          player.locked ? 'bg-red-500/10' : ''
-        }`}
-      >
-        <td className="p-4">
-          <div className="font-bold text-sm text-white flex items-center gap-2">
-            {player.locked && <Lock size={12} className="text-red-400" />}
-            {player.name}
-          </div>
-          <div className="text-[10px] font-mono text-yellow-500 bg-white/5 inline-block px-1.5 rounded mt-1 select-all tracking-wide">
-            {player.code}
-          </div>
-        </td>
-
-        <td className="p-4 text-xs text-slate-400 font-medium">
-          {player.team}
-        </td>
-
-        <td className="p-4 text-center">
-          <div
-            className={`w-2 h-2 rounded-full mx-auto ${
-              player.active
-                ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
-                : 'bg-red-500 opacity-30'
-            }`}
-          />
-          {player.locked && (
-            <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">
-              LOCKED
-            </div>
-          )}
-        </td>
-
-        <td className="p-4 text-right font-mono text-lg font-bold">
-          {player.score}
-        </td>
-
-        <td className="p-4 text-right space-y-2">
-          {/* SCORE CONTROLS */}
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => updateScore(player.id, -minusScore)}
-              className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
-            >
-              <Minus size={12} />
-            </button>
-
-            <button
-              onClick={() => updateScore(player.id, plusScore)}
-              className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"
-            >
-              <Plus size={12} />
-            </button>
-          </div>
-
-          {/* DELETE PLAYER */}
-          <button
-            onClick={() => deletePlayer(player.id)}
-            className="w-full text-[9px] bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 font-bold py-1 rounded border border-red-500/30 uppercase tracking-wider"
-          >
-            DELETE
-          </button>
-
-          {/* UNLOCK PLAYER */}
-          {player.locked && (
-            <button
-              onClick={() => toggleLock(player.id, player.locked)}
-              className="w-full text-[9px] bg-yellow-500/20 hover:bg-yellow-500 hover:text-black text-yellow-300 font-bold py-1 rounded border border-yellow-500/30 uppercase tracking-wider"
-            >
-              UNLOCK
-            </button>
-          )}
-        </td>
-      </tr>
-    ))}
-</tbody>
-
+                  {playerList.sort((a, b) => b.score - a.score).map((player) => (
+                    <tr key={player.id} className={`hover:bg-white/5 transition group ${player.locked ? 'bg-red-500/10' : ''}`}>
+                      <td className="p-4"><div className="font-bold text-sm text-white flex items-center gap-2">{player.locked && <Lock size={12} className="text-red-400" />}{player.name}</div><div className="text-[10px] font-mono text-yellow-500 bg-white/5 inline-block px-1.5 rounded mt-1 select-all tracking-wide">{player.code}</div></td>
+                      <td className="p-4 text-xs text-slate-400 font-medium">{player.team}</td>
+                      <td className="p-4 text-center"><div className={`w-2 h-2 rounded-full mx-auto ${player.active ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-red-500 opacity-30'}`} />{player.locked && <div className="text-[9px] text-red-400 font-bold mt-1 tracking-wider">LOCKED</div>}</td>
+                      <td className="p-4 text-right font-mono text-lg font-bold">{player.score}</td>
+                      <td className="p-4 text-right space-y-2"><div className="flex justify-end gap-2"><button onClick={() => updateScore(player.id, -minusScore)} className="bg-white/5 hover:bg-red-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Minus size={12} /></button><button onClick={() => updateScore(player.id, plusScore)} className="bg-white/5 hover:bg-emerald-500 hover:text-white text-slate-400 p-1.5 rounded-lg transition"><Plus size={12} /></button></div><button onClick={() => deletePlayer(player.id)} className="w-full text-[9px] bg-red-500/20 hover:bg-red-500 hover:text-white text-red-300 font-bold py-1 rounded border border-red-500/30 uppercase tracking-wider">DELETE</button>{player.locked && <button onClick={() => toggleLock(player.id, player.locked)} className="w-full text-[9px] bg-yellow-500/20 hover:bg-yellow-500 hover:text-black text-yellow-300 font-bold py-1 rounded border border-yellow-500/30 uppercase tracking-wider">UNLOCK</button>}</td>
+                    </tr>
+                  ))}
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -1440,7 +1043,6 @@ const deleteGameCompletely = async (gameId) => {
       );
     };
 
-    // --- MAIN WRAPPER ---
     const GameWrapper = ({ gameCode, playerCode, onExit }) => {
       const [game, setGame] = useState(null); const [player, setPlayer] = useState(null);
       useEffect(() => {
@@ -1464,17 +1066,13 @@ const deleteGameCompletely = async (gameId) => {
           authChecked = true; setUser(u); setLoading(false);
           const loader = document.getElementById('loading-screen'); if(loader) loader.style.display = 'none';
         });
-        setTimeout(() => {
-          if (!authChecked) { console.warn("Auth check timed out."); setLoading(false); const loader = document.getElementById('loading-screen'); if(loader) loader.style.display = 'none'; }
-        }, 2500);
-        signInAnonymously(auth).catch(e => console.warn("Silent login failed:", e));
+        setTimeout(() => { if (!authChecked) { setLoading(false); } }, 2500);
         return () => unsubscribe();
       }, []);
 
       const handlePlayerJoin = async () => {
         setPlayerError('');
         if (!gameCode || !playerCode) { setPlayerError('Please enter both codes.'); return; }
-        if (!user) await signInAnonymously(auth).catch(e => console.error(e));
         try {
           const gCode = gameCode.trim().toUpperCase(); const pCode = playerCode.trim().toUpperCase();
           const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
@@ -1491,7 +1089,7 @@ const deleteGameCompletely = async (gameId) => {
           const gCode = gameCode.trim().toUpperCase();
           const snap = await getDocs(query(collection(db, GAMES_COLLECTION), where('code', '==', gCode)));
           if(!snap.empty) setMode('projector'); else setPlayerError('Game room not found.');
-        } catch (e) { console.error(e); setPlayerError('Connection error.'); }
+        } catch (e) { setPlayerError('Connection error.'); }
       };
 
       if (loading) return null;
@@ -1540,28 +1138,3 @@ const deleteGameCompletely = async (gameId) => {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
